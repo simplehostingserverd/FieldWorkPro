@@ -29,6 +29,7 @@ yarn-error.log*
 ehthumbs.db
 Thumbs.db
 desktop.ini
+*.pem
 
 # Env
 .env
@@ -36,6 +37,7 @@ desktop.ini
 .env.development.local
 .env.test.local
 .env.production.local
+.env*.local
 
 # Database
 *.sqlite
@@ -52,6 +54,7 @@ yarn-error.log*
 
 # Typescript
 *.tsbuildinfo
+next-env.d.ts
 
 # Docker
 .dockerignore
@@ -66,3 +69,6 @@ docker-compose.override.yml
 # Temporary files
 *.tmp
 *.temp
+
+# Vercel
+.vercel
