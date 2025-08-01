@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:15-alpine
+    container_name: fieldpro-db
+    restart: always
+    environment:
+      POSTGRES_DB: fieldpro
+      POSTGRES_USER: fieldpro_user
+      POSTGRES_PASSWORD: fieldpro_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # Backend API
+  api:
+    build: ./backend
+    container_name: fieldpro-api
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_NAME=fieldpro
+      - DB_USER=fieldpro_user
+      - DB_PASSWORD=fieldpro_password
+      - JWT_SECRET=fieldpro_jwt_secret
+      - JWT_EXPIRES_IN=24h
+      - NODE_ENV=development
+    depends_on:
+      - database
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # Web Dashboard
+  web:
+    build: ./web-dashboard
+    container_name: fieldpro-web
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+
+volumes:
+  db_data:

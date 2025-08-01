@@ -1,0 +1,47 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f9fafb;
+}
+
+/* Custom styles for FieldPro */
+.fieldpro-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.fieldpro-card {
+  @apply bg-white rounded-lg shadow-md p-6;
+}
+
+.fieldpro-btn {
+  @apply px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors;
+}
+
+.fieldpro-btn-primary {
+  @apply fieldpro-btn bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500;
+}
+
+.fieldpro-btn-secondary {
+  @apply fieldpro-btn bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-500;
+}
+
+.fieldpro-input {
+  @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500;
+}
+
+.fieldpro-label {
+  @apply block text-sm font-medium text-gray-700;
+}
+
+.fieldpro-error {
+  @apply text-red-600 text-sm mt-1;
+}

@@ -1,0 +1,26 @@
+{
+  "name": "fieldpro",
+  "version": "1.0.0",
+  "description": "Field Service Management Application",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently --names \"API,WEB\" --prefix-colors \"blue,green\" \"npm run dev --prefix backend\" \"npm run start --prefix web-dashboard\"",
+    "start": "npm run dev",
+    "backend": "npm run dev --prefix backend",
+    "frontend": "npm run start --prefix web-dashboard",
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix web-dashboard",
+    "build": "npm run build --prefix backend && npm run build --prefix web-dashboard",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "field-service",
+    "management",
+    "crm",
+    "scheduling"
+  ],
+  "author": "FieldPro Team",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^7.6.0"
+  }
+}
