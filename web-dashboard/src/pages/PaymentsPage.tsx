@@ -6,6 +6,8 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import LoadingSpinner from '../components/LoadingSpinner';
 import StatusBadge from '../components/StatusBadge';
+import FormModal from '../components/FormModal';
+import ConfirmModal from '../components/ConfirmModal';
 import Alert from '../components/Alert';
 
 const PaymentsPage: React.FC = () => {
@@ -13,6 +15,14 @@ const PaymentsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Modal states
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [deletingPayment, setDeletingPayment] = useState<any>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     fetchPayments();
@@ -33,32 +43,59 @@ const PaymentsPage: React.FC = () => {
   };
 
   const handleAddPayment = () => {
-    // Implement add payment logic
-    console.log('Add payment');
+    setEditingPayment(null);
+    setIsFormModalOpen(true);
   };
 
-  const handleEditPayment = (id: string) => {
-    // Implement edit payment logic
-    console.log('Edit payment', id);
+  const handleEditPayment = (payment: any) => {
+    setEditingPayment(payment);
+    setIsFormModalOpen(true);
   };
 
-  const handleDeletePayment = (id: string) => {
-    // Implement delete payment logic
-    console.log('Delete payment', id);
+  const handleDeletePayment = (payment: any) => {
+    setDeletingPayment(payment);
+    setIsDeleteModalOpen(true);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'failed':
-        return 'bg-red-100 text-red-800';
-      case 'refunded':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const handleFormSubmit = async (formData: any) => {
+    try {
+      setFormLoading(true);
+      setError(null);
+
+      if (editingPayment) {
+        await apiService.updatePayment(editingPayment.id, formData);
+        setSuccess('Payment updated successfully');
+      } else {
+        await apiService.createPayment(formData);
+        setSuccess('Payment created successfully');
+      }
+
+      setIsFormModalOpen(false);
+      fetchPayments();
+    } catch (error) {
+      console.error('Error saving payment:', error);
+      setError('Failed to save payment. Please try again.');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingPayment) return;
+
+    try {
+      setFormLoading(true);
+      setError(null);
+
+      await apiService.deletePayment(deletingPayment.id);
+      setSuccess('Payment deleted successfully');
+      setIsDeleteModalOpen(false);
+      fetchPayments();
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      setError('Failed to delete payment. Please try again.');
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -71,21 +108,61 @@ const PaymentsPage: React.FC = () => {
 
   const filteredPayments = payments.filter(payment =>
     payment.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.invoice.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.paymentMethod.toLowerCase().includes(searchTerm.toLowerCase())
+    payment.paymentMethod.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    payment.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Payment form fields
+  const paymentFields = [
+    { name: 'customerId', label: 'Customer', type: 'text' as const, required: true },
+    { name: 'invoiceId', label: 'Invoice', type: 'text' as const, required: true },
+    { name: 'amount', label: 'Amount', type: 'number' as const, required: true },
+    {
+      name: 'paymentMethod',
+      label: 'Payment Method',
+      type: 'select' as const,
+      required: true,
+      options: [
+        { value: 'cash', label: 'Cash' },
+        { value: 'check', label: 'Check' },
+        { value: 'credit_card', label: 'Credit Card' },
+        { value: 'debit_card', label: 'Debit Card' },
+        { value: 'ach', label: 'ACH' },
+        { value: 'other', label: 'Other' }
+      ]
+    },
+    { name: 'paymentDate', label: 'Payment Date', type: 'date' as const, required: true },
+    {
+      name: 'status',
+      label: 'Status',
+      type: 'select' as const,
+      required: true,
+      options: [
+        { value: 'pending', label: 'Pending' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'failed', label: 'Failed' },
+        { value: 'refunded', label: 'Refunded' }
+      ]
+    },
+    { name: 'transactionId', label: 'Transaction ID', type: 'text' as const },
+    { name: 'notes', label: 'Notes', type: 'textarea' as const }
+  ];
 
   return (
     <div className="space-y-6">
       <div className="mb-2">
         <h1 className="text-3xl font-bold text-gray-900">Payments</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Track customer payments and transactions
+          Manage customer payments
         </p>
       </div>
 
       {error && (
-        <Alert type="error" message={error} />
+        <Alert type="error" message={error} onClose={() => setError(null)} />
+      )}
+
+      {success && (
+        <Alert type="success" message={success} onClose={() => setSuccess(null)} />
       )}
 
       {/* Search */}
@@ -106,10 +183,10 @@ const PaymentsPage: React.FC = () => {
 
       {/* Payments Table */}
       <Card
-        title="Payment Records"
+        title="Payment List"
         actions={
           <Button onClick={handleAddPayment} icon={FaPlus}>
-            Record Payment
+            Add Payment
           </Button>
         }
       >
@@ -126,16 +203,13 @@ const PaymentsPage: React.FC = () => {
                     Customer
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Invoice
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Amount
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Payment Method
+                    Method
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Payment Date
+                    Date
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -148,17 +222,14 @@ const PaymentsPage: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredPayments.map((payment) => (
                   <tr key={payment.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{payment.customer}</div>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {payment.customer}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {payment.invoice}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatCurrency(payment.amount)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {payment.paymentMethod}
+                      {payment.paymentMethod.replace('_', ' ')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(payment.paymentDate).toLocaleDateString()}
@@ -171,7 +242,7 @@ const PaymentsPage: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEditPayment(payment.id)}
+                          onClick={() => handleEditPayment(payment)}
                           icon={FaEdit}
                         >
                           Edit
@@ -179,7 +250,7 @@ const PaymentsPage: React.FC = () => {
                         <Button
                           variant="danger"
                           size="sm"
-                          onClick={() => handleDeletePayment(payment.id)}
+                          onClick={() => handleDeletePayment(payment)}
                           icon={FaTrash}
                         >
                           Delete
@@ -190,7 +261,7 @@ const PaymentsPage: React.FC = () => {
                 ))}
                 {filteredPayments.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
+                    <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
                       <div className="flex flex-col items-center justify-center py-4">
                         <FaCreditCard className="h-8 w-8 text-gray-300 mb-2" />
                         <p>No payments found</p>
@@ -208,6 +279,30 @@ const PaymentsPage: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {/* Form Modal */}
+      <FormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        onSubmit={handleFormSubmit}
+        title={editingPayment ? 'Edit Payment' : 'Add Payment'}
+        fields={paymentFields}
+        initialData={editingPayment || {}}
+        loading={formLoading}
+        submitText={editingPayment ? 'Update Payment' : 'Create Payment'}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Payment"
+        message={`Are you sure you want to delete this payment of ${deletingPayment ? formatCurrency(deletingPayment.amount) : ''}? This action cannot be undone.`}
+        confirmText="Delete Payment"
+        type="danger"
+        loading={formLoading}
+      />
     </div>
   );
 };

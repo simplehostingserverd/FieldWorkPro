@@ -1,10 +1,12 @@
 // src/pages/InventoryPage.tsx
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaBoxes } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaBox } from 'react-icons/fa';
 import apiService from '../services/apiService';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import LoadingSpinner from '../components/LoadingSpinner';
+import FormModal from '../components/FormModal';
+import ConfirmModal from '../components/ConfirmModal';
 import Alert from '../components/Alert';
 
 const InventoryPage: React.FC = () => {
@@ -12,6 +14,14 @@ const InventoryPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Modal states
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [deletingItem, setDeletingItem] = useState<any>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     fetchInventory();
@@ -21,29 +31,71 @@ const InventoryPage: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiService.getInventoryItems();
+      const data = await apiService.getInventory();
       setInventory(data);
     } catch (error) {
       console.error('Error fetching inventory:', error);
-      setError('Failed to load inventory items. Please try again.');
+      setError('Failed to load inventory. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddInventory = () => {
-    // Implement add inventory logic
-    console.log('Add inventory item');
+  const handleAddItem = () => {
+    setEditingItem(null);
+    setIsFormModalOpen(true);
   };
 
-  const handleEditInventory = (id: string) => {
-    // Implement edit inventory logic
-    console.log('Edit inventory item', id);
+  const handleEditItem = (item: any) => {
+    setEditingItem(item);
+    setIsFormModalOpen(true);
   };
 
-  const handleDeleteInventory = (id: string) => {
-    // Implement delete inventory logic
-    console.log('Delete inventory item', id);
+  const handleDeleteItem = (item: any) => {
+    setDeletingItem(item);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleFormSubmit = async (formData: any) => {
+    try {
+      setFormLoading(true);
+      setError(null);
+
+      if (editingItem) {
+        await apiService.updateInventoryItem(editingItem.id, formData);
+        setSuccess('Inventory item updated successfully');
+      } else {
+        await apiService.createInventoryItem(formData);
+        setSuccess('Inventory item created successfully');
+      }
+
+      setIsFormModalOpen(false);
+      fetchInventory();
+    } catch (error) {
+      console.error('Error saving inventory item:', error);
+      setError('Failed to save inventory item. Please try again.');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingItem) return;
+
+    try {
+      setFormLoading(true);
+      setError(null);
+
+      await apiService.deleteInventoryItem(deletingItem.id);
+      setSuccess('Inventory item deleted successfully');
+      setIsDeleteModalOpen(false);
+      fetchInventory();
+    } catch (error) {
+      console.error('Error deleting inventory item:', error);
+      setError('Failed to delete inventory item. Please try again.');
+    } finally {
+      setFormLoading(false);
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -53,33 +105,40 @@ const InventoryPage: React.FC = () => {
     }).format(amount);
   };
 
-  const getStockStatus = (quantity: number, reorderLevel: number) => {
-    if (quantity <= reorderLevel) {
-      return 'text-red-600 font-bold';
-    } else if (quantity <= reorderLevel * 2) {
-      return 'text-yellow-600';
-    } else {
-      return 'text-green-600';
-    }
-  };
-
   const filteredInventory = inventory.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
+    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Inventory form fields
+  const inventoryFields = [
+    { name: 'name', label: 'Item Name', type: 'text' as const, required: true },
+    { name: 'sku', label: 'SKU', type: 'text' as const, required: true },
+    { name: 'description', label: 'Description', type: 'textarea' as const },
+    { name: 'category', label: 'Category', type: 'text' as const },
+    { name: 'unitCost', label: 'Unit Cost', type: 'number' as const, required: true },
+    { name: 'unitPrice', label: 'Unit Price', type: 'number' as const, required: true },
+    { name: 'quantityInStock', label: 'Quantity in Stock', type: 'number' as const, required: true },
+    { name: 'reorderLevel', label: 'Reorder Level', type: 'number' as const },
+    { name: 'notes', label: 'Notes', type: 'textarea' as const }
+  ];
 
   return (
     <div className="space-y-6">
       <div className="mb-2">
         <h1 className="text-3xl font-bold text-gray-900">Inventory</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Manage parts and materials inventory
+          Manage inventory items
         </p>
       </div>
 
       {error && (
-        <Alert type="error" message={error} />
+        <Alert type="error" message={error} onClose={() => setError(null)} />
+      )}
+
+      {success && (
+        <Alert type="success" message={success} onClose={() => setSuccess(null)} />
       )}
 
       {/* Search */}
@@ -102,7 +161,7 @@ const InventoryPage: React.FC = () => {
       <Card
         title="Inventory Items"
         actions={
-          <Button onClick={handleAddInventory} icon={FaPlus}>
+          <Button onClick={handleAddItem} icon={FaPlus}>
             Add Item
           </Button>
         }
@@ -132,7 +191,7 @@ const InventoryPage: React.FC = () => {
                     Price
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
+                    In Stock
                   </th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -144,6 +203,7 @@ const InventoryPage: React.FC = () => {
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                      <div className="text-sm text-gray-500">{item.description}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.sku}
@@ -151,18 +211,16 @@ const InventoryPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.category}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatCurrency(item.unitCost)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatCurrency(item.unitPrice)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={getStockStatus(item.quantityInStock, item.reorderLevel)}>
-                        {item.quantityInStock} in stock
-                      </span>
-                      {item.quantityInStock <= item.reorderLevel && (
-                        <div className="text-xs text-red-600">Reorder needed</div>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.quantityInStock}
+                      {item.quantityInStock <= item.reorderLevel && item.reorderLevel > 0 && (
+                        <span className="ml-2 text-xs text-red-600"> LOW STOCK</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -170,7 +228,7 @@ const InventoryPage: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEditInventory(item.id)}
+                          onClick={() => handleEditItem(item)}
                           icon={FaEdit}
                         >
                           Edit
@@ -178,7 +236,7 @@ const InventoryPage: React.FC = () => {
                         <Button
                           variant="danger"
                           size="sm"
-                          onClick={() => handleDeleteInventory(item.id)}
+                          onClick={() => handleDeleteItem(item)}
                           icon={FaTrash}
                         >
                           Delete
@@ -191,7 +249,7 @@ const InventoryPage: React.FC = () => {
                   <tr>
                     <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
                       <div className="flex flex-col items-center justify-center py-4">
-                        <FaBoxes className="h-8 w-8 text-gray-300 mb-2" />
+                        <FaBox className="h-8 w-8 text-gray-300 mb-2" />
                         <p>No inventory items found</p>
                         {searchTerm && (
                           <p className="text-xs text-gray-400 mt-1">
@@ -207,6 +265,30 @@ const InventoryPage: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {/* Form Modal */}
+      <FormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        onSubmit={handleFormSubmit}
+        title={editingItem ? 'Edit Inventory Item' : 'Add Inventory Item'}
+        fields={inventoryFields}
+        initialData={editingItem || {}}
+        loading={formLoading}
+        submitText={editingItem ? 'Update Item' : 'Create Item'}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Inventory Item"
+        message={`Are you sure you want to delete "${deletingItem?.name}"? This action cannot be undone.`}
+        confirmText="Delete Item"
+        type="danger"
+        loading={formLoading}
+      />
     </div>
   );
 };

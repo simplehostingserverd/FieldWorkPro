@@ -17,30 +17,31 @@
   "author": "FieldPro Team",
   "license": "MIT",
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.14.2",
     "axios": "^1.4.0",
-    "formik": "^2.4.3",
-    "yup": "^1.2.0",
-    "react-icons": "^4.10.1",
     "chart.js": "^4.3.0",
-    "react-chartjs-2": "^5.2.0"
+    "fieldpro": "file:..",
+    "formik": "^2.4.3",
+    "react": "^18.2.0",
+    "react-chartjs-2": "^5.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^4.10.1",
+    "react-router-dom": "^6.14.2",
+    "yup": "^1.2.0"
   },
   "devDependencies": {
+    "@types/node": "^20.4.1",
     "@types/react": "^18.2.14",
     "@types/react-dom": "^18.2.6",
-    "@types/node": "^20.4.1",
+    "autoprefixer": "^10.4.14",
+    "css-loader": "^6.8.1",
+    "html-webpack-plugin": "^5.5.3",
+    "postcss": "^8.4.25",
+    "style-loader": "^3.3.3",
+    "tailwindcss": "^3.3.2",
+    "ts-loader": "^9.4.4",
     "typescript": "^5.1.6",
     "webpack": "^5.88.1",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.1",
-    "ts-loader": "^9.4.4",
-    "html-webpack-plugin": "^5.5.3",
-    "css-loader": "^6.8.1",
-    "style-loader": "^3.3.3",
-    "tailwindcss": "^3.3.2",
-    "postcss": "^8.4.25",
-    "autoprefixer": "^10.4.14"
+    "webpack-dev-server": "^4.15.1"
   }
 }

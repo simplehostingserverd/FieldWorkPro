@@ -202,7 +202,7 @@ class ApiService {
   }
 
   // Inventory API methods
-  async getInventoryItems() {
+  async getInventory() {
     return this.request<any[]>({
       method: 'GET',
       url: '/inventory',
@@ -254,7 +254,7 @@ class ApiService {
     });
   }
 
-  async createEquipment(data: any) {
+  async createEquipmentItem(data: any) {
     return this.request<any>({
       method: 'POST',
       url: '/equipment',
@@ -262,7 +262,7 @@ class ApiService {
     });
   }
 
-  async updateEquipment(id: string, data: any) {
+  async updateEquipmentItem(id: string, data: any) {
     return this.request<any>({
       method: 'PUT',
       url: `/equipment/${id}`,
@@ -270,7 +270,7 @@ class ApiService {
     });
   }
 
-  async deleteEquipment(id: string) {
+  async deleteEquipmentItem(id: string) {
     return this.request<void>({
       method: 'DELETE',
       url: `/equipment/${id}`,

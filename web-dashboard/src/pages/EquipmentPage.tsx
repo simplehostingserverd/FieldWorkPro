@@ -1,11 +1,13 @@
 // src/pages/EquipmentPage.tsx
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaTools } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaToolbox } from 'react-icons/fa';
 import apiService from '../services/apiService';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import LoadingSpinner from '../components/LoadingSpinner';
 import StatusBadge from '../components/StatusBadge';
+import FormModal from '../components/FormModal';
+import ConfirmModal from '../components/ConfirmModal';
 import Alert from '../components/Alert';
 
 const EquipmentPage: React.FC = () => {
@@ -13,6 +15,14 @@ const EquipmentPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Modal states
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [deletingItem, setDeletingItem] = useState<any>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     fetchEquipment();
@@ -32,54 +42,109 @@ const EquipmentPage: React.FC = () => {
     }
   };
 
-  const handleAddEquipment = () => {
-    // Implement add equipment logic
-    console.log('Add equipment');
+  const handleAddItem = () => {
+    setEditingItem(null);
+    setIsFormModalOpen(true);
   };
 
-  const handleEditEquipment = (id: string) => {
-    // Implement edit equipment logic
-    console.log('Edit equipment', id);
+  const handleEditItem = (item: any) => {
+    setEditingItem(item);
+    setIsFormModalOpen(true);
   };
 
-  const handleDeleteEquipment = (id: string) => {
-    // Implement delete equipment logic
-    console.log('Delete equipment', id);
+  const handleDeleteItem = (item: any) => {
+    setDeletingItem(item);
+    setIsDeleteModalOpen(true);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'available':
-        return 'bg-green-100 text-green-800';
-      case 'in_use':
-        return 'bg-blue-100 text-blue-800';
-      case 'maintenance':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'retired':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const handleFormSubmit = async (formData: any) => {
+    try {
+      setFormLoading(true);
+      setError(null);
+
+      if (editingItem) {
+        await apiService.updateEquipmentItem(editingItem.id, formData);
+        setSuccess('Equipment item updated successfully');
+      } else {
+        await apiService.createEquipmentItem(formData);
+        setSuccess('Equipment item created successfully');
+      }
+
+      setIsFormModalOpen(false);
+      fetchEquipment();
+    } catch (error) {
+      console.error('Error saving equipment item:', error);
+      setError('Failed to save equipment item. Please try again.');
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingItem) return;
+
+    try {
+      setFormLoading(true);
+      setError(null);
+
+      await apiService.deleteEquipmentItem(deletingItem.id);
+      setSuccess('Equipment item deleted successfully');
+      setIsDeleteModalOpen(false);
+      fetchEquipment();
+    } catch (error) {
+      console.error('Error deleting equipment item:', error);
+      setError('Failed to delete equipment item. Please try again.');
+    } finally {
+      setFormLoading(false);
     }
   };
 
   const filteredEquipment = equipment.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.assignedTo.toLowerCase().includes(searchTerm.toLowerCase())
+    item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Equipment form fields
+  const equipmentFields = [
+    { name: 'name', label: 'Equipment Name', type: 'text' as const, required: true },
+    { name: 'serialNumber', label: 'Serial Number', type: 'text' as const },
+    { name: 'description', label: 'Description', type: 'textarea' as const },
+    { name: 'category', label: 'Category', type: 'text' as const },
+    {
+      name: 'status',
+      label: 'Status',
+      type: 'select' as const,
+      required: true,
+      options: [
+        { value: 'available', label: 'Available' },
+        { value: 'in_use', label: 'In Use' },
+        { value: 'maintenance', label: 'Maintenance' },
+        { value: 'retired', label: 'Retired' }
+      ]
+    },
+    { name: 'assignedTo', label: 'Assigned To', type: 'text' as const },
+    { name: 'purchaseDate', label: 'Purchase Date', type: 'date' as const },
+    { name: 'warrantyExpiry', label: 'Warranty Expiry', type: 'date' as const },
+    { name: 'notes', label: 'Notes', type: 'textarea' as const }
+  ];
 
   return (
     <div className="space-y-6">
       <div className="mb-2">
         <h1 className="text-3xl font-bold text-gray-900">Equipment</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Manage company equipment and tools
+          Manage equipment and tools
         </p>
       </div>
 
       {error && (
-        <Alert type="error" message={error} />
+        <Alert type="error" message={error} onClose={() => setError(null)} />
+      )}
+
+      {success && (
+        <Alert type="success" message={success} onClose={() => setSuccess(null)} />
       )}
 
       {/* Search */}
@@ -102,7 +167,7 @@ const EquipmentPage: React.FC = () => {
       <Card
         title="Equipment List"
         actions={
-          <Button onClick={handleAddEquipment} icon={FaPlus}>
+          <Button onClick={handleAddItem} icon={FaPlus}>
             Add Equipment
           </Button>
         }
@@ -120,7 +185,7 @@ const EquipmentPage: React.FC = () => {
                     Equipment
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Serial Number
+                    Serial #
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Category
@@ -129,10 +194,10 @@ const EquipmentPage: React.FC = () => {
                     Assigned To
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Purchase Date
+                    Status
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    Purchase Date
                   </th>
                   <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -144,6 +209,7 @@ const EquipmentPage: React.FC = () => {
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                      <div className="text-sm text-gray-500">{item.description}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.serialNumber}
@@ -154,18 +220,18 @@ const EquipmentPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.assignedTo}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(item.purchaseDate).toLocaleDateString()}
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={item.status} />
+                      <StatusBadge status={item.status.replace('_', '-')} />
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.purchaseDate ? new Date(item.purchaseDate).toLocaleDateString() : ''}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleEditEquipment(item.id)}
+                          onClick={() => handleEditItem(item)}
                           icon={FaEdit}
                         >
                           Edit
@@ -173,7 +239,7 @@ const EquipmentPage: React.FC = () => {
                         <Button
                           variant="danger"
                           size="sm"
-                          onClick={() => handleDeleteEquipment(item.id)}
+                          onClick={() => handleDeleteItem(item)}
                           icon={FaTrash}
                         >
                           Delete
@@ -186,7 +252,7 @@ const EquipmentPage: React.FC = () => {
                   <tr>
                     <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
                       <div className="flex flex-col items-center justify-center py-4">
-                        <FaTools className="h-8 w-8 text-gray-300 mb-2" />
+                        <FaToolbox className="h-8 w-8 text-gray-300 mb-2" />
                         <p>No equipment found</p>
                         {searchTerm && (
                           <p className="text-xs text-gray-400 mt-1">
@@ -202,6 +268,30 @@ const EquipmentPage: React.FC = () => {
           </div>
         )}
       </Card>
+
+      {/* Form Modal */}
+      <FormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        onSubmit={handleFormSubmit}
+        title={editingItem ? 'Edit Equipment' : 'Add Equipment'}
+        fields={equipmentFields}
+        initialData={editingItem || {}}
+        loading={formLoading}
+        submitText={editingItem ? 'Update Equipment' : 'Create Equipment'}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Equipment"
+        message={`Are you sure you want to delete "${deletingItem?.name}"? This action cannot be undone.`}
+        confirmText="Delete Equipment"
+        type="danger"
+        loading={formLoading}
+      />
     </div>
   );
 };

@@ -1,12 +1,28 @@
 // src/pages/InvoicesPage.tsx
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaFilePdf } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaFileInvoice } from 'react-icons/fa';
 import apiService from '../services/apiService';
+import Card from '../components/Card';
+import Button from '../components/Button';
+import LoadingSpinner from '../components/LoadingSpinner';
+import StatusBadge from '../components/StatusBadge';
+import FormModal from '../components/FormModal';
+import ConfirmModal from '../components/ConfirmModal';
+import Alert from '../components/Alert';
 
 const InvoicesPage: React.FC = () => {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Modal states
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<any>(null);
+  const [deletingInvoice, setDeletingInvoice] = useState<any>(null);
+  const [formLoading, setFormLoading] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
@@ -15,47 +31,71 @@ const InvoicesPage: React.FC = () => {
   const fetchInvoices = async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await apiService.getInvoices();
       setInvoices(data);
     } catch (error) {
       console.error('Error fetching invoices:', error);
+      setError('Failed to load invoices. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddInvoice = () => {
-    // Implement add invoice logic
-    console.log('Add invoice');
+    setEditingInvoice(null);
+    setIsFormModalOpen(true);
   };
 
-  const handleEditInvoice = (id: string) => {
-    // Implement edit invoice logic
-    console.log('Edit invoice', id);
+  const handleEditInvoice = (invoice: any) => {
+    setEditingInvoice(invoice);
+    setIsFormModalOpen(true);
   };
 
-  const handleDeleteInvoice = (id: string) => {
-    // Implement delete invoice logic
-    console.log('Delete invoice', id);
+  const handleDeleteInvoice = (invoice: any) => {
+    setDeletingInvoice(invoice);
+    setIsDeleteModalOpen(true);
   };
 
-  const handleDownloadInvoice = (id: string) => {
-    // Implement download invoice logic
-    console.log('Download invoice', id);
+  const handleFormSubmit = async (formData: any) => {
+    try {
+      setFormLoading(true);
+      setError(null);
+
+      if (editingInvoice) {
+        await apiService.updateInvoice(editingInvoice.id, formData);
+        setSuccess('Invoice updated successfully');
+      } else {
+        await apiService.createInvoice(formData);
+        setSuccess('Invoice created successfully');
+      }
+
+      setIsFormModalOpen(false);
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+      setError('Failed to save invoice. Please try again.');
+    } finally {
+      setFormLoading(false);
+    }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'overdue':
-        return 'bg-red-100 text-red-800';
-      case 'cancelled':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const handleConfirmDelete = async () => {
+    if (!deletingInvoice) return;
+
+    try {
+      setFormLoading(true);
+      setError(null);
+
+      await apiService.deleteInvoice(deletingInvoice.id);
+      setSuccess('Invoice deleted successfully');
+      setIsDeleteModalOpen(false);
+      fetchInvoices();
+    } catch (error) {
+      console.error('Error deleting invoice:', error);
+      setError('Failed to delete invoice. Please try again.');
+    } finally {
+      setFormLoading(false);
     }
   };
 
@@ -68,50 +108,80 @@ const InvoicesPage: React.FC = () => {
 
   const filteredInvoices = invoices.filter(invoice =>
     invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.customer.toLowerCase().includes(searchTerm.toLowerCase())
+    invoice.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    invoice.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Invoice form fields
+  const invoiceFields = [
+    { name: 'invoiceNumber', label: 'Invoice Number', type: 'text' as const, required: true },
+    { name: 'customerId', label: 'Customer', type: 'text' as const, required: true },
+    { name: 'issueDate', label: 'Issue Date', type: 'date' as const, required: true },
+    { name: 'dueDate', label: 'Due Date', type: 'date' as const, required: true },
+    { name: 'subtotal', label: 'Subtotal', type: 'number' as const, required: true },
+    { name: 'tax', label: 'Tax', type: 'number' as const, required: true },
+    { name: 'total', label: 'Total', type: 'number' as const, required: true },
+    {
+      name: 'status',
+      label: 'Status',
+      type: 'select' as const,
+      required: true,
+      options: [
+        { value: 'draft', label: 'Draft' },
+        { value: 'sent', label: 'Sent' },
+        { value: 'paid', label: 'Paid' },
+        { value: 'overdue', label: 'Overdue' },
+        { value: 'cancelled', label: 'Cancelled' }
+      ]
+    },
+    { name: 'notes', label: 'Notes', type: 'textarea' as const }
+  ];
+
   return (
-    <div>
-      <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Manage customer invoices
-          </p>
-        </div>
-        <div className="mt-4 md:mt-0">
-          <button
-            onClick={handleAddInvoice}
-            className="fieldpro-btn-primary flex items-center"
-          >
-            <FaPlus className="mr-2" />
-            Create Invoice
-          </button>
-        </div>
+    <div className="space-y-6">
+      <div className="mb-2">
+        <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
+        <p className="mt-2 text-sm text-gray-600">
+          Manage customer invoices
+        </p>
       </div>
 
+      {error && (
+        <Alert type="error" message={error} onClose={() => setError(null)} />
+      )}
+
+      {success && (
+        <Alert type="success" message={success} onClose={() => setSuccess(null)} />
+      )}
+
       {/* Search */}
-      <div className="fieldpro-card mb-6">
+      <Card>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <FaSearch className="h-5 w-5 text-gray-400" />
           </div>
           <input
             type="text"
-            className="fieldpro-input pl-10"
+            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
             placeholder="Search invoices..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-      </div>
+      </Card>
 
       {/* Invoices Table */}
-      <div className="fieldpro-card">
+      <Card
+        title="Invoice List"
+        actions={
+          <Button onClick={handleAddInvoice} icon={FaPlus}>
+            Add Invoice
+          </Button>
+        }
+      >
         {loading ? (
           <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <LoadingSpinner size="large" />
           </div>
         ) : (
           <div className="overflow-hidden">
@@ -156,41 +226,78 @@ const InvoicesPage: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(invoice.dueDate).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(invoice.amount)}
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatCurrency(invoice.total)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(invoice.status)}`}>
-                        {invoice.status}
-                      </span>
+                      <StatusBadge status={invoice.status} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleDownloadInvoice(invoice.id)}
-                        className="text-red-600 hover:text-red-900 mr-3"
-                      >
-                        <FaFilePdf />
-                      </button>
-                      <button
-                        onClick={() => handleEditInvoice(invoice.id)}
-                        className="text-blue-600 hover:text-blue-900 mr-3"
-                      >
-                        <FaEdit />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteInvoice(invoice.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        <FaTrash />
-                      </button>
+                      <div className="flex justify-end space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditInvoice(invoice)}
+                          icon={FaEdit}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleDeleteInvoice(invoice)}
+                          icon={FaTrash}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
+                {filteredInvoices.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
+                      <div className="flex flex-col items-center justify-center py-4">
+                        <FaFileInvoice className="h-8 w-8 text-gray-300 mb-2" />
+                        <p>No invoices found</p>
+                        {searchTerm && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Try adjusting your search criteria
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         )}
-      </div>
+      </Card>
+
+      {/* Form Modal */}
+      <FormModal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        onSubmit={handleFormSubmit}
+        title={editingInvoice ? 'Edit Invoice' : 'Add Invoice'}
+        fields={invoiceFields}
+        initialData={editingInvoice || {}}
+        loading={formLoading}
+        submitText={editingInvoice ? 'Update Invoice' : 'Create Invoice'}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Invoice"
+        message={`Are you sure you want to delete invoice "${deletingInvoice?.invoiceNumber}"? This action cannot be undone.`}
+        confirmText="Delete Invoice"
+        type="danger"
+        loading={formLoading}
+      />
     </div>
   );
 };
