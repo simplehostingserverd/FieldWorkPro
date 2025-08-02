@@ -1,5 +1,11 @@
 // QuickBooks Online API Integration
-import { BaseIntegration, IntegrationConfig, IntegrationCredentials, WebhookPayload, SyncResult } from '../base/IntegrationManager';
+import {
+  BaseIntegration,
+  IntegrationConfig,
+  IntegrationCredentials,
+  WebhookPayload,
+  SyncResult,
+} from '../base/IntegrationManager';
 import { query } from '../../database';
 import crypto from 'crypto';
 
@@ -9,6 +15,7 @@ export interface QuickBooksConfig extends IntegrationConfig {
   redirectUri: string;
   sandbox: boolean;
   companyId: string;
+  webhookSecret?: string;
 }
 
 export interface QuickBooksCustomer {
@@ -66,7 +73,7 @@ export class QuickBooksIntegration extends BaseIntegration {
   constructor(config: QuickBooksConfig) {
     super(config);
     this.qbConfig = config;
-    this.baseApiUrl = config.sandbox 
+    this.baseApiUrl = config.sandbox
       ? 'https://sandbox-quickbooks.api.intuit.com'
       : 'https://quickbooks.api.intuit.com';
   }
@@ -76,10 +83,10 @@ export class QuickBooksIntegration extends BaseIntegration {
       // In a real implementation, this would handle OAuth 2.0 flow
       // For now, assume we have valid credentials stored
       const storedCredentials = await this.getStoredCredentials();
-      
+
       if (storedCredentials && storedCredentials.accessToken) {
         this.credentials = storedCredentials;
-        
+
         // Test the credentials
         const isValid = await this.testConnection();
         if (isValid) {
@@ -90,7 +97,10 @@ export class QuickBooksIntegration extends BaseIntegration {
       // If credentials are invalid or missing, initiate OAuth flow
       return await this.initiateOAuthFlow();
     } catch (error) {
-      this.logger.error('Authentication failed', error);
+      this.logger.error(
+        'Authentication failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       return false;
     }
   }
@@ -103,7 +113,10 @@ export class QuickBooksIntegration extends BaseIntegration {
       );
       return response && response.QueryResponse;
     } catch (error) {
-      this.logger.error('Connection test failed', error);
+      this.logger.error(
+        'Connection test failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       return false;
     }
   }
@@ -137,8 +150,13 @@ export class QuickBooksIntegration extends BaseIntegration {
       }
     } catch (error) {
       result.success = false;
-      result.errors.push(error.message);
-      this.logger.error('Sync failed', error);
+      result.errors.push(
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      this.logger.error(
+        'Sync failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
     }
 
     this.emit('sync:complete', result);
@@ -148,95 +166,143 @@ export class QuickBooksIntegration extends BaseIntegration {
   async handleWebhook(payload: WebhookPayload): Promise<void> {
     try {
       // Verify webhook signature
-      if (!this.validateWebhookSignature(JSON.stringify(payload.data), payload.signature || '')) {
+      if (
+        !this.validateWebhookSignature(
+          JSON.stringify(payload.data),
+          payload.signature || ''
+        )
+      ) {
         throw new Error('Invalid webhook signature');
       }
 
       const { eventNotifications } = payload.data;
-      
+
       for (const notification of eventNotifications) {
         for (const entity of notification.dataChangeEvent.entities) {
-          await this.handleEntityChange(entity.name, entity.id, entity.operation);
+          await this.handleEntityChange(
+            entity.name,
+            entity.id,
+            entity.operation
+          );
         }
       }
 
       this.emit('webhook:processed', payload);
     } catch (error) {
-      this.logger.error('Webhook handling failed', error);
+      this.logger.error(
+        'Webhook handling failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       throw error;
     }
   }
 
   // Customer synchronization
-  private async syncCustomers(result: SyncResult, lastSyncTime?: Date): Promise<void> {
-    let query = "SELECT * FROM Customer";
-    
+  private async syncCustomers(
+    result: SyncResult,
+    lastSyncTime?: Date
+  ): Promise<void> {
+    let query = 'SELECT * FROM Customer';
+
     if (lastSyncTime) {
       const formattedDate = lastSyncTime.toISOString().split('T')[0];
       query += ` WHERE MetaData.LastUpdatedTime > '${formattedDate}'`;
     }
 
-    const response = await this.makeRequest('GET', `/v3/company/${this.qbConfig.companyId}/query?query=${encodeURIComponent(query)}`);
-    
+    const response = await this.makeRequest(
+      'GET',
+      `/v3/company/${this.qbConfig.companyId}/query?query=${encodeURIComponent(
+        query
+      )}`
+    );
+
     if (response.QueryResponse && response.QueryResponse.Customer) {
       const customers: QuickBooksCustomer[] = response.QueryResponse.Customer;
-      
+
       for (const qbCustomer of customers) {
         try {
           await this.upsertCustomer(qbCustomer);
           result.recordsProcessed++;
         } catch (error) {
-          result.errors.push(`Customer ${qbCustomer.Id}: ${error.message}`);
+          result.errors.push(
+            `Customer ${qbCustomer.Id}: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`
+          );
         }
       }
     }
   }
 
   // Invoice synchronization
-  private async syncInvoices(result: SyncResult, lastSyncTime?: Date): Promise<void> {
-    let query = "SELECT * FROM Invoice";
-    
+  private async syncInvoices(
+    result: SyncResult,
+    lastSyncTime?: Date
+  ): Promise<void> {
+    let query = 'SELECT * FROM Invoice';
+
     if (lastSyncTime) {
       const formattedDate = lastSyncTime.toISOString().split('T')[0];
       query += ` WHERE MetaData.LastUpdatedTime > '${formattedDate}'`;
     }
 
-    const response = await this.makeRequest('GET', `/v3/company/${this.qbConfig.companyId}/query?query=${encodeURIComponent(query)}`);
-    
+    const response = await this.makeRequest(
+      'GET',
+      `/v3/company/${this.qbConfig.companyId}/query?query=${encodeURIComponent(
+        query
+      )}`
+    );
+
     if (response.QueryResponse && response.QueryResponse.Invoice) {
       const invoices: QuickBooksInvoice[] = response.QueryResponse.Invoice;
-      
+
       for (const qbInvoice of invoices) {
         try {
           await this.upsertInvoice(qbInvoice);
           result.recordsProcessed++;
         } catch (error) {
-          result.errors.push(`Invoice ${qbInvoice.Id}: ${error.message}`);
+          result.errors.push(
+            `Invoice ${qbInvoice.Id}: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`
+          );
         }
       }
     }
   }
 
   // Payment synchronization
-  private async syncPayments(result: SyncResult, lastSyncTime?: Date): Promise<void> {
-    let query = "SELECT * FROM Payment";
-    
+  private async syncPayments(
+    result: SyncResult,
+    lastSyncTime?: Date
+  ): Promise<void> {
+    let query = 'SELECT * FROM Payment';
+
     if (lastSyncTime) {
       const formattedDate = lastSyncTime.toISOString().split('T')[0];
       query += ` WHERE MetaData.LastUpdatedTime > '${formattedDate}'`;
     }
 
-    const response = await this.makeRequest('GET', `/v3/company/${this.qbConfig.companyId}/query?query=${encodeURIComponent(query)}`);
-    
+    const response = await this.makeRequest(
+      'GET',
+      `/v3/company/${this.qbConfig.companyId}/query?query=${encodeURIComponent(
+        query
+      )}`
+    );
+
     if (response.QueryResponse && response.QueryResponse.Payment) {
       const payments = response.QueryResponse.Payment;
-      
+
       for (const qbPayment of payments) {
         try {
           await this.upsertPayment(qbPayment);
           result.recordsProcessed++;
         } catch (error) {
-          result.errors.push(`Payment ${qbPayment.Id}: ${error.message}`);
+          result.errors.push(
+            `Payment ${qbPayment.Id}: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`
+          );
         }
       }
     }
@@ -330,7 +396,11 @@ export class QuickBooksIntegration extends BaseIntegration {
     this.logger.info(`Syncing payment ${qbPayment.Id}`);
   }
 
-  private async handleEntityChange(entityName: string, entityId: string, operation: string): Promise<void> {
+  private async handleEntityChange(
+    entityName: string,
+    entityId: string,
+    operation: string
+  ): Promise<void> {
     this.logger.info(`Handling ${operation} for ${entityName} ${entityId}`);
     // Implement real-time sync based on webhook notifications
   }
@@ -346,13 +416,16 @@ export class QuickBooksIntegration extends BaseIntegration {
     return false;
   }
 
-  protected validateWebhookSignature(payload: string, signature: string): boolean {
+  protected validateWebhookSignature(
+    payload: string,
+    signature: string
+  ): boolean {
     // Implement QuickBooks webhook signature validation
     const expectedSignature = crypto
       .createHmac('sha256', this.qbConfig.webhookSecret || '')
       .update(payload)
       .digest('base64');
-    
+
     return signature === expectedSignature;
   }
 }

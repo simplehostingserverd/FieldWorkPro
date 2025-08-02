@@ -16,6 +16,17 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  # Redis Cache Service
+  redis:
+    image: redis:7-alpine
+    container_name: fieldpro-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
   # Backend API
   api:
     build: ./backend
@@ -29,11 +40,14 @@ services:
       - DB_NAME=fieldpro
       - DB_USER=fieldpro_user
       - DB_PASSWORD=fieldpro_password
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - JWT_SECRET=fieldpro_jwt_secret
       - JWT_EXPIRES_IN=24h
       - NODE_ENV=development
     depends_on:
       - database
+      - redis
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -50,3 +64,4 @@ services:
 
 volumes:
   db_data:
+  redis_data:

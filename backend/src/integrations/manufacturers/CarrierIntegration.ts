@@ -1,5 +1,10 @@
 // Carrier Equipment Manufacturer Integration
-import { BaseIntegration, IntegrationConfig, WebhookPayload, SyncResult } from '../base/IntegrationManager';
+import {
+  BaseIntegration,
+  IntegrationConfig,
+  WebhookPayload,
+  SyncResult,
+} from '../base/IntegrationManager';
 import { query } from '../../database';
 
 export interface CarrierConfig extends IntegrationConfig {
@@ -72,9 +77,10 @@ export class CarrierIntegration extends BaseIntegration {
   constructor(config: CarrierConfig) {
     super(config);
     this.carrierConfig = config;
-    this.config.baseUrl = config.environment === 'production' 
-      ? 'https://api.carrier.com/v1'
-      : 'https://sandbox-api.carrier.com/v1';
+    this.config.baseUrl =
+      config.environment === 'production'
+        ? 'https://api.carrier.com/v1'
+        : 'https://sandbox-api.carrier.com/v1';
   }
 
   async authenticate(): Promise<boolean> {
@@ -83,7 +89,7 @@ export class CarrierIntegration extends BaseIntegration {
       const response = await this.makeRequest('GET', '/dealer/verify', {
         dealerCode: this.carrierConfig.dealerCode,
       });
-      
+
       return response && response.status === 'verified';
     } catch (error) {
       this.logger.error('Carrier authentication failed', error);
@@ -124,8 +130,13 @@ export class CarrierIntegration extends BaseIntegration {
       }
     } catch (error) {
       result.success = false;
-      result.errors.push(error.message);
-      this.logger.error('Carrier sync failed', error);
+      result.errors.push(
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      this.logger.error(
+        'Carrier sync failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
     }
 
     this.emit('sync:complete', result);
@@ -139,7 +150,9 @@ export class CarrierIntegration extends BaseIntegration {
   }
 
   // Equipment lookup methods
-  async lookupEquipmentBySerial(serialNumber: string): Promise<CarrierEquipment | null> {
+  async lookupEquipmentBySerial(
+    serialNumber: string
+  ): Promise<CarrierEquipment | null> {
     try {
       const response = await this.makeRequest('GET', `/equipment/lookup`, {
         serialNumber,
@@ -149,19 +162,28 @@ export class CarrierIntegration extends BaseIntegration {
       if (response && response.equipment) {
         return response.equipment;
       }
-      
+
       return null;
     } catch (error) {
-      this.logger.error(`Equipment lookup failed for serial ${serialNumber}`, error);
+      this.logger.error(
+        `Equipment lookup failed for serial ${serialNumber}`,
+        error
+      );
       return null;
     }
   }
 
-  async lookupEquipmentByModel(modelNumber: string): Promise<CarrierEquipment[]> {
+  async lookupEquipmentByModel(
+    modelNumber: string
+  ): Promise<CarrierEquipment[]> {
     try {
-      const response = await this.makeRequest('GET', `/equipment/model/${modelNumber}`, {
-        dealerCode: this.carrierConfig.dealerCode,
-      });
+      const response = await this.makeRequest(
+        'GET',
+        `/equipment/model/${modelNumber}`,
+        {
+          dealerCode: this.carrierConfig.dealerCode,
+        }
+      );
 
       return response?.equipment || [];
     } catch (error) {
@@ -205,13 +227,20 @@ export class CarrierIntegration extends BaseIntegration {
 
   async getCompatibleParts(modelNumber: string): Promise<CarrierPart[]> {
     try {
-      const response = await this.makeRequest('GET', `/parts/compatible/${modelNumber}`, {
-        dealerCode: this.carrierConfig.dealerCode,
-      });
+      const response = await this.makeRequest(
+        'GET',
+        `/parts/compatible/${modelNumber}`,
+        {
+          dealerCode: this.carrierConfig.dealerCode,
+        }
+      );
 
       return response?.parts || [];
     } catch (error) {
-      this.logger.error(`Compatible parts lookup failed for ${modelNumber}`, error);
+      this.logger.error(
+        `Compatible parts lookup failed for ${modelNumber}`,
+        error
+      );
       return [];
     }
   }
@@ -226,7 +255,10 @@ export class CarrierIntegration extends BaseIntegration {
 
       return response?.warranty || null;
     } catch (error) {
-      this.logger.error(`Warranty check failed for serial ${serialNumber}`, error);
+      this.logger.error(
+        `Warranty check failed for serial ${serialNumber}`,
+        error
+      );
       return null;
     }
   }
@@ -261,35 +293,53 @@ export class CarrierIntegration extends BaseIntegration {
   // Service manual methods
   async getServiceManual(modelNumber: string): Promise<string | null> {
     try {
-      const response = await this.makeRequest('GET', `/manuals/service/${modelNumber}`, {
-        dealerCode: this.carrierConfig.dealerCode,
-      });
+      const response = await this.makeRequest(
+        'GET',
+        `/manuals/service/${modelNumber}`,
+        {
+          dealerCode: this.carrierConfig.dealerCode,
+        }
+      );
 
       return response?.manualUrl || null;
     } catch (error) {
-      this.logger.error(`Service manual lookup failed for ${modelNumber}`, error);
+      this.logger.error(
+        `Service manual lookup failed for ${modelNumber}`,
+        error
+      );
       return null;
     }
   }
 
   async getInstallationManual(modelNumber: string): Promise<string | null> {
     try {
-      const response = await this.makeRequest('GET', `/manuals/installation/${modelNumber}`, {
-        dealerCode: this.carrierConfig.dealerCode,
-      });
+      const response = await this.makeRequest(
+        'GET',
+        `/manuals/installation/${modelNumber}`,
+        {
+          dealerCode: this.carrierConfig.dealerCode,
+        }
+      );
 
       return response?.manualUrl || null;
     } catch (error) {
-      this.logger.error(`Installation manual lookup failed for ${modelNumber}`, error);
+      this.logger.error(
+        `Installation manual lookup failed for ${modelNumber}`,
+        error
+      );
       return null;
     }
   }
 
   async getPartsManual(modelNumber: string): Promise<string | null> {
     try {
-      const response = await this.makeRequest('GET', `/manuals/parts/${modelNumber}`, {
-        dealerCode: this.carrierConfig.dealerCode,
-      });
+      const response = await this.makeRequest(
+        'GET',
+        `/manuals/parts/${modelNumber}`,
+        {
+          dealerCode: this.carrierConfig.dealerCode,
+        }
+      );
 
       return response?.manualUrl || null;
     } catch (error) {
@@ -302,20 +352,26 @@ export class CarrierIntegration extends BaseIntegration {
   private async syncEquipmentData(result: SyncResult): Promise<void> {
     // Get all equipment from our database that needs manufacturer data
     const equipmentQuery = await query(
-      'SELECT id, serial_number, model FROM equipment WHERE manufacturer = $1 AND carrier_data_synced_at IS NULL OR carrier_data_synced_at < NOW() - INTERVAL \'30 days\'',
+      "SELECT id, serial_number, model FROM equipment WHERE manufacturer = $1 AND carrier_data_synced_at IS NULL OR carrier_data_synced_at < NOW() - INTERVAL '30 days'",
       ['Carrier']
     );
 
     for (const equipment of equipmentQuery.rows) {
       try {
-        const carrierData = await this.lookupEquipmentBySerial(equipment.serial_number);
-        
+        const carrierData = await this.lookupEquipmentBySerial(
+          equipment.serial_number
+        );
+
         if (carrierData) {
           await this.updateEquipmentWithCarrierData(equipment.id, carrierData);
           result.recordsProcessed++;
         }
       } catch (error) {
-        result.errors.push(`Equipment ${equipment.id}: ${error.message}`);
+        result.errors.push(
+          `Equipment ${equipment.id}: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
       }
     }
   }
@@ -330,13 +386,17 @@ export class CarrierIntegration extends BaseIntegration {
     for (const modelRow of modelsQuery.rows) {
       try {
         const parts = await this.getCompatibleParts(modelRow.model);
-        
+
         for (const part of parts) {
           await this.upsertPartData(part);
           result.recordsProcessed++;
         }
       } catch (error) {
-        result.errors.push(`Parts for model ${modelRow.model}: ${error.message}`);
+        result.errors.push(
+          `Parts for model ${modelRow.model}: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
       }
     }
   }
@@ -351,19 +411,26 @@ export class CarrierIntegration extends BaseIntegration {
     for (const equipment of equipmentQuery.rows) {
       try {
         const warranty = await this.checkWarranty(equipment.serial_number);
-        
+
         if (warranty) {
           await this.updateEquipmentWarranty(equipment.id, warranty);
           result.recordsProcessed++;
         }
       } catch (error) {
-        result.errors.push(`Warranty for ${equipment.serial_number}: ${error.message}`);
+        result.errors.push(
+          `Warranty for ${equipment.serial_number}: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
       }
     }
   }
 
   // Database operations
-  private async updateEquipmentWithCarrierData(equipmentId: string, carrierData: CarrierEquipment): Promise<void> {
+  private async updateEquipmentWithCarrierData(
+    equipmentId: string,
+    carrierData: CarrierEquipment
+  ): Promise<void> {
     await query(
       `UPDATE equipment SET 
        manufacturer_model_number = $2,
@@ -437,7 +504,10 @@ export class CarrierIntegration extends BaseIntegration {
     }
   }
 
-  private async updateEquipmentWarranty(equipmentId: string, warranty: CarrierWarranty): Promise<void> {
+  private async updateEquipmentWarranty(
+    equipmentId: string,
+    warranty: CarrierWarranty
+  ): Promise<void> {
     await query(
       `UPDATE equipment SET 
        warranty_start_date = $2,

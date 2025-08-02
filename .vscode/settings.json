@@ -7,12 +7,12 @@
   },
   "editor.tabSize": 2,
   "editor.insertSpaces": true,
-  
+
   // TypeScript Settings
   "typescript.preferences.importModuleSpecifier": "relative",
   "typescript.suggest.autoImports": true,
   "typescript.updateImportsOnFileMove.enabled": "always",
-  
+
   // Tailwind CSS
   "tailwindCSS.includeLanguages": {
     "typescript": "javascript",
@@ -24,19 +24,19 @@
     ["classnames\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"],
     ["cn\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
   ],
-  
+
   // File Associations
   "files.associations": {
     "*.css": "tailwindcss",
     "*.env*": "dotenv"
   },
-  
+
   // Emmet
   "emmet.includeLanguages": {
     "typescript": "html",
     "typescriptreact": "html"
   },
-  
+
   // Search & Files
   "search.exclude": {
     "**/node_modules": true,
@@ -51,27 +51,24 @@
     "**/build": true,
     "**/coverage": true
   },
-  
+
   // Git
   "git.autofetch": true,
   "git.enableSmartCommit": true,
-  
+
   // Terminal
   "terminal.integrated.defaultProfile.windows": "Git Bash",
-  
+
   // Prettier Configuration
   "prettier.semi": true,
   "prettier.singleQuote": true,
   "prettier.trailingComma": "es5",
   "prettier.tabWidth": 2,
   "prettier.printWidth": 80,
-  
+
   // ESLint
-  "eslint.workingDirectories": [
-    "./backend",
-    "./web-dashboard"
-  ],
-  
+  "eslint.workingDirectories": ["./backend", "./web-dashboard"],
+
   // Language Specific Settings
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
@@ -88,10 +85,10 @@
   "[css]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  
+
   // Docker
   "docker.showStartPage": false,
-  
+
   // SQL Tools
   "sqltools.connections": [
     {
@@ -103,5 +100,6 @@
       "username": "fieldpro_user",
       "password": "fieldpro_password"
     }
-  ]
+  ],
+  "DockerRun.DisableDockerrc": true
 }

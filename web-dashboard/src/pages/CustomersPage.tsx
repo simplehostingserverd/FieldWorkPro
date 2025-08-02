@@ -5,9 +5,10 @@ import apiService from '../services/apiService';
 import Card from '../components/Card';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/Button';
-import FormModal from '../components/FormModal';
+import ImprovedFormModal from '../components/ImprovedFormModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Alert from '../components/Alert';
+import { customerFormFields } from '../config/formConfigs';
 
 const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
@@ -106,38 +107,6 @@ const CustomersPage: React.FC = () => {
       customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.phone.includes(searchTerm)
   );
-
-  // Customer form fields
-  const customerFields = [
-    {
-      name: 'first_name',
-      label: 'First Name',
-      type: 'text' as const,
-      required: true,
-    },
-    {
-      name: 'last_name',
-      label: 'Last Name',
-      type: 'text' as const,
-      required: true,
-    },
-    { name: 'email', label: 'Email', type: 'email' as const, required: true },
-    { name: 'phone', label: 'Phone', type: 'tel' as const, required: true },
-    {
-      name: 'address',
-      label: 'Address',
-      type: 'text' as const,
-      required: true,
-    },
-    { name: 'city', label: 'City', type: 'text' as const, required: true },
-    { name: 'state', label: 'State', type: 'text' as const, required: true },
-    {
-      name: 'zip_code',
-      label: 'ZIP Code',
-      type: 'text' as const,
-      required: true,
-    },
-  ];
 
   return (
     <div className="space-y-6">
@@ -298,12 +267,12 @@ const CustomersPage: React.FC = () => {
       </Card>
 
       {/* Form Modal */}
-      <FormModal
+      <ImprovedFormModal
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
         onSubmit={handleFormSubmit}
         title={editingCustomer ? 'Edit Customer' : 'Add Customer'}
-        fields={customerFields}
+        fields={customerFormFields}
         initialData={editingCustomer || {}}
         loading={formLoading}
         submitText={editingCustomer ? 'Update Customer' : 'Create Customer'}

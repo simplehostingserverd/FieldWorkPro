@@ -46,20 +46,20 @@ export interface SyncResult {
 
 export abstract class BaseIntegration extends EventEmitter {
   protected config: IntegrationConfig;
-  protected credentials: IntegrationCredentials;
-  protected rateLimiter: RateLimiter;
-  protected retryManager: RetryManager;
+  protected credentials: IntegrationCredentials = {};
+  protected rateLimiter?: RateLimiter;
+  protected retryManager?: RetryManager;
   protected logger: Logger;
 
   constructor(config: IntegrationConfig) {
     super();
     this.config = config;
     this.logger = new Logger(`Integration:${config.name}`);
-    
+
     if (config.rateLimits) {
       this.rateLimiter = new RateLimiter(config.rateLimits);
     }
-    
+
     if (config.retryConfig) {
       this.retryManager = new RetryManager(config.retryConfig);
     }
@@ -68,7 +68,10 @@ export abstract class BaseIntegration extends EventEmitter {
   // Abstract methods that each integration must implement
   abstract authenticate(): Promise<boolean>;
   abstract testConnection(): Promise<boolean>;
-  abstract syncData(entityType: string, lastSyncTime?: Date): Promise<SyncResult>;
+  abstract syncData(
+    entityType: string,
+    lastSyncTime?: Date
+  ): Promise<SyncResult>;
   abstract handleWebhook(payload: WebhookPayload): Promise<void>;
 
   // Common utility methods
@@ -83,13 +86,15 @@ export abstract class BaseIntegration extends EventEmitter {
     }
 
     const url = `${this.config.baseUrl}${endpoint}`;
-    const requestHeaders = {
+    const requestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       ...headers,
     };
 
     if (this.credentials.accessToken) {
-      requestHeaders['Authorization'] = `Bearer ${this.credentials.accessToken}`;
+      requestHeaders[
+        'Authorization'
+      ] = `Bearer ${this.credentials.accessToken}`;
     }
 
     try {
@@ -105,7 +110,10 @@ export abstract class BaseIntegration extends EventEmitter {
 
       return await response.json();
     } catch (error) {
-      this.logger.error(`Request failed: ${method} ${url}`, error);
+      this.logger.error(
+        `Request failed: ${method} ${url}`,
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       throw error;
     }
   }
@@ -115,7 +123,10 @@ export abstract class BaseIntegration extends EventEmitter {
     return false;
   }
 
-  protected validateWebhookSignature(payload: string, signature: string): boolean {
+  protected validateWebhookSignature(
+    payload: string,
+    signature: string
+  ): boolean {
     // Override in specific integrations that use webhook signatures
     return true;
   }
@@ -141,7 +152,7 @@ export class IntegrationManager extends EventEmitter {
 
   registerIntegration(integration: BaseIntegration): void {
     this.integrations.set(integration.name, integration);
-    
+
     // Forward integration events
     integration.on('sync:complete', (result: SyncResult) => {
       this.emit('integration:sync:complete', integration.name, result);
@@ -163,31 +174,38 @@ export class IntegrationManager extends EventEmitter {
   }
 
   getEnabledIntegrations(): BaseIntegration[] {
-    return Array.from(this.integrations.values()).filter(integration => integration.isEnabled);
+    return Array.from(this.integrations.values()).filter(
+      (integration) => integration.isEnabled
+    );
   }
 
   async authenticateAll(): Promise<Map<string, boolean>> {
     const results = new Map<string, boolean>();
-    
+
     for (const [name, integration] of this.integrations) {
       if (integration.isEnabled) {
         try {
           const success = await integration.authenticate();
           results.set(name, success);
-          this.logger.info(`Authentication ${success ? 'successful' : 'failed'} for ${name}`);
+          this.logger.info(
+            `Authentication ${success ? 'successful' : 'failed'} for ${name}`
+          );
         } catch (error) {
           results.set(name, false);
-          this.logger.error(`Authentication error for ${name}:`, error);
+          this.logger.error(
+            `Authentication error for ${name}:`,
+            error instanceof Error ? error.message : 'Unknown error'
+          );
         }
       }
     }
-    
+
     return results;
   }
 
   async testAllConnections(): Promise<Map<string, boolean>> {
     const results = new Map<string, boolean>();
-    
+
     for (const [name, integration] of this.integrations) {
       if (integration.isEnabled) {
         try {
@@ -195,17 +213,20 @@ export class IntegrationManager extends EventEmitter {
           results.set(name, success);
         } catch (error) {
           results.set(name, false);
-          this.logger.error(`Connection test failed for ${name}:`, error);
+          this.logger.error(
+            `Connection test failed for ${name}:`,
+            error instanceof Error ? error.message : 'Unknown error'
+          );
         }
       }
     }
-    
+
     return results;
   }
 
   async syncAllData(entityType?: string): Promise<Map<string, SyncResult>> {
     const results = new Map<string, SyncResult>();
-    
+
     for (const [name, integration] of this.integrations) {
       if (integration.isEnabled) {
         try {
@@ -216,7 +237,7 @@ export class IntegrationManager extends EventEmitter {
           const errorResult: SyncResult = {
             success: false,
             recordsProcessed: 0,
-            errors: [error.message],
+            errors: [error instanceof Error ? error.message : 'Unknown error'],
             lastSyncTime: new Date(),
           };
           results.set(name, errorResult);
@@ -224,13 +245,16 @@ export class IntegrationManager extends EventEmitter {
         }
       }
     }
-    
+
     return results;
   }
 
-  async handleWebhook(integrationName: string, payload: WebhookPayload): Promise<void> {
+  async handleWebhook(
+    integrationName: string,
+    payload: WebhookPayload
+  ): Promise<void> {
     const integration = this.integrations.get(integrationName);
-    
+
     if (!integration) {
       throw new Error(`Integration not found: ${integrationName}`);
     }
@@ -245,14 +269,14 @@ export class IntegrationManager extends EventEmitter {
 
   getIntegrationStatus(): Record<string, any> {
     const status: Record<string, any> = {};
-    
+
     for (const [name, integration] of this.integrations) {
       status[name] = {
         enabled: integration.isEnabled,
         // Add more status info as needed
       };
     }
-    
+
     return status;
   }
 }

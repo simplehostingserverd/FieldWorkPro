@@ -1,8 +1,12 @@
 // Authentication middleware
 import { Request, Response, NextFunction } from 'express';
-import { verifyToken } from '../config/auth';
+import { verifyToken } from './auth';
 
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     // Get token from header
     const authHeader = req.headers.authorization;
@@ -40,5 +44,5 @@ export const authorize = (roles: string[]) => {
 
 export default {
   authenticate,
-  authorize
+  authorize,
 };

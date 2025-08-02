@@ -28,10 +28,7 @@ module.exports = {
             loader: 'postcss-loader',
             options: {
               postcssOptions: {
-                plugins: [
-                  require('tailwindcss'),
-                  require('autoprefixer'),
-                ],
+                plugins: [require('tailwindcss'), require('autoprefixer')],
               },
             },
           },
@@ -46,7 +43,9 @@ module.exports = {
     new webpack.DefinePlugin({
       'process.env': {
         NODE_ENV: JSON.stringify(process.env.NODE_ENV || 'development'),
-        REACT_APP_API_URL: JSON.stringify(process.env.REACT_APP_API_URL || 'http://localhost:8080/api'),
+        REACT_APP_API_URL: JSON.stringify(
+          process.env.REACT_APP_API_URL || 'http://localhost:8080/api'
+        ),
       },
     }),
   ],
@@ -55,7 +54,7 @@ module.exports = {
       directory: path.join(__dirname, 'public'),
     },
     compress: true,
-    port: 8081,
+    port: 3000,
     historyApiFallback: true,
     open: true,
   },

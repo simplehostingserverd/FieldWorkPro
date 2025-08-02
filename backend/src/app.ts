@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 
-import authRoutes from './routes/auth.routes';
+import authRoutes from './routes/auth';
 import customerRoutes from './routes/customers.routes';
 import jobRoutes from './routes/jobs.routes';
 import invoiceRoutes from './routes/invoices.routes';
@@ -33,7 +33,9 @@ class App {
   private routes(): void {
     // Health check route
     this.app.get('/health', (req, res) => {
-      res.status(200).json({ status: 'OK', message: 'FieldPro API is running' });
+      res
+        .status(200)
+        .json({ status: 'OK', message: 'FieldPro API is running' });
     });
 
     // API routes

@@ -1,5 +1,10 @@
 // Stripe Payment Processing Integration
-import { BaseIntegration, IntegrationConfig, WebhookPayload, SyncResult } from '../base/IntegrationManager';
+import {
+  BaseIntegration,
+  IntegrationConfig,
+  WebhookPayload,
+  SyncResult,
+} from '../base/IntegrationManager';
 import { query } from '../../database';
 import crypto from 'crypto';
 
@@ -63,7 +68,10 @@ export class StripeIntegration extends BaseIntegration {
       const response = await this.makeRequest('GET', '/account');
       return response && response.id;
     } catch (error) {
-      this.logger.error('Stripe authentication failed', error);
+      this.logger.error(
+        'Stripe authentication failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       return false;
     }
   }
@@ -101,8 +109,13 @@ export class StripeIntegration extends BaseIntegration {
       }
     } catch (error) {
       result.success = false;
-      result.errors.push(error.message);
-      this.logger.error('Stripe sync failed', error);
+      result.errors.push(
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      this.logger.error(
+        'Stripe sync failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
     }
 
     this.emit('sync:complete', result);
@@ -112,12 +125,17 @@ export class StripeIntegration extends BaseIntegration {
   async handleWebhook(payload: WebhookPayload): Promise<void> {
     try {
       // Verify webhook signature
-      if (!this.validateWebhookSignature(JSON.stringify(payload.data), payload.signature || '')) {
+      if (
+        !this.validateWebhookSignature(
+          JSON.stringify(payload.data),
+          payload.signature || ''
+        )
+      ) {
         throw new Error('Invalid Stripe webhook signature');
       }
 
       const event = payload.data;
-      
+
       switch (event.type) {
         case 'payment_intent.succeeded':
           await this.handlePaymentSuccess(event.data.object);
@@ -138,13 +156,21 @@ export class StripeIntegration extends BaseIntegration {
 
       this.emit('webhook:processed', payload);
     } catch (error) {
-      this.logger.error('Stripe webhook handling failed', error);
+      this.logger.error(
+        'Stripe webhook handling failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
       throw error;
     }
   }
 
   // Payment processing methods
-  async createPaymentIntent(amount: number, currency: string, customerId?: string, metadata?: Record<string, string>): Promise<any> {
+  async createPaymentIntent(
+    amount: number,
+    currency: string,
+    customerId?: string,
+    metadata?: Record<string, string>
+  ): Promise<any> {
     const data: any = {
       amount: Math.round(amount * 100), // Convert to cents
       currency: currency.toLowerCase(),
@@ -172,11 +198,15 @@ export class StripeIntegration extends BaseIntegration {
     return await this.makeRequest('POST', '/customers', customerData);
   }
 
-  async createInvoice(customerId: string, items: Array<{
-    description: string;
-    amount: number;
-    quantity?: number;
-  }>, metadata?: Record<string, string>): Promise<StripeInvoice> {
+  async createInvoice(
+    customerId: string,
+    items: Array<{
+      description: string;
+      amount: number;
+      quantity?: number;
+    }>,
+    metadata?: Record<string, string>
+  ): Promise<StripeInvoice> {
     // First create invoice items
     for (const item of items) {
       await this.makeRequest('POST', '/invoiceitems', {
@@ -199,14 +229,18 @@ export class StripeIntegration extends BaseIntegration {
     }
 
     const invoice = await this.makeRequest('POST', '/invoices', invoiceData);
-    
+
     // Finalize the invoice
     await this.makeRequest('POST', `/invoices/${invoice.id}/finalize`);
-    
+
     return invoice;
   }
 
-  async setupRecurringBilling(customerId: string, priceId: string, metadata?: Record<string, string>): Promise<any> {
+  async setupRecurringBilling(
+    customerId: string,
+    priceId: string,
+    metadata?: Record<string, string>
+  ): Promise<any> {
     const subscriptionData: any = {
       customer: customerId,
       items: [{ price: priceId }],
@@ -222,13 +256,16 @@ export class StripeIntegration extends BaseIntegration {
   }
 
   // Sync methods
-  private async syncCustomers(result: SyncResult, lastSyncTime?: Date): Promise<void> {
+  private async syncCustomers(
+    result: SyncResult,
+    lastSyncTime?: Date
+  ): Promise<void> {
     let hasMore = true;
     let startingAfter: string | undefined;
 
     while (hasMore) {
       const params: any = { limit: 100 };
-      
+
       if (startingAfter) {
         params.starting_after = startingAfter;
       }
@@ -238,13 +275,17 @@ export class StripeIntegration extends BaseIntegration {
       }
 
       const response = await this.makeRequest('GET', '/customers', params);
-      
+
       for (const customer of response.data) {
         try {
           await this.upsertCustomer(customer);
           result.recordsProcessed++;
         } catch (error) {
-          result.errors.push(`Customer ${customer.id}: ${error.message}`);
+          result.errors.push(
+            `Customer ${customer.id}: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`
+          );
         }
       }
 
@@ -255,13 +296,16 @@ export class StripeIntegration extends BaseIntegration {
     }
   }
 
-  private async syncPayments(result: SyncResult, lastSyncTime?: Date): Promise<void> {
+  private async syncPayments(
+    result: SyncResult,
+    lastSyncTime?: Date
+  ): Promise<void> {
     let hasMore = true;
     let startingAfter: string | undefined;
 
     while (hasMore) {
       const params: any = { limit: 100 };
-      
+
       if (startingAfter) {
         params.starting_after = startingAfter;
       }
@@ -270,14 +314,22 @@ export class StripeIntegration extends BaseIntegration {
         params.created = { gte: Math.floor(lastSyncTime.getTime() / 1000) };
       }
 
-      const response = await this.makeRequest('GET', '/payment_intents', params);
-      
+      const response = await this.makeRequest(
+        'GET',
+        '/payment_intents',
+        params
+      );
+
       for (const payment of response.data) {
         try {
           await this.upsertPayment(payment);
           result.recordsProcessed++;
         } catch (error) {
-          result.errors.push(`Payment ${payment.id}: ${error.message}`);
+          result.errors.push(
+            `Payment ${payment.id}: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`
+          );
         }
       }
 
@@ -288,13 +340,16 @@ export class StripeIntegration extends BaseIntegration {
     }
   }
 
-  private async syncInvoices(result: SyncResult, lastSyncTime?: Date): Promise<void> {
+  private async syncInvoices(
+    result: SyncResult,
+    lastSyncTime?: Date
+  ): Promise<void> {
     let hasMore = true;
     let startingAfter: string | undefined;
 
     while (hasMore) {
       const params: any = { limit: 100 };
-      
+
       if (startingAfter) {
         params.starting_after = startingAfter;
       }
@@ -304,13 +359,17 @@ export class StripeIntegration extends BaseIntegration {
       }
 
       const response = await this.makeRequest('GET', '/invoices', params);
-      
+
       for (const invoice of response.data) {
         try {
           await this.upsertInvoice(invoice);
           result.recordsProcessed++;
         } catch (error) {
-          result.errors.push(`Invoice ${invoice.id}: ${error.message}`);
+          result.errors.push(
+            `Invoice ${invoice.id}: ${
+              error instanceof Error ? error.message : 'Unknown error'
+            }`
+          );
         }
       }
 
@@ -375,7 +434,9 @@ export class StripeIntegration extends BaseIntegration {
     }
   }
 
-  private async upsertPayment(stripePayment: StripePaymentIntent): Promise<void> {
+  private async upsertPayment(
+    stripePayment: StripePaymentIntent
+  ): Promise<void> {
     // Implementation for payment sync
     this.logger.info(`Syncing payment ${stripePayment.id}`);
   }
@@ -386,12 +447,16 @@ export class StripeIntegration extends BaseIntegration {
   }
 
   // Webhook handlers
-  private async handlePaymentSuccess(paymentIntent: StripePaymentIntent): Promise<void> {
+  private async handlePaymentSuccess(
+    paymentIntent: StripePaymentIntent
+  ): Promise<void> {
     this.logger.info(`Payment succeeded: ${paymentIntent.id}`);
     // Update payment status in database
   }
 
-  private async handlePaymentFailure(paymentIntent: StripePaymentIntent): Promise<void> {
+  private async handlePaymentFailure(
+    paymentIntent: StripePaymentIntent
+  ): Promise<void> {
     this.logger.info(`Payment failed: ${paymentIntent.id}`);
     // Update payment status and notify customer
   }
@@ -412,7 +477,7 @@ export class StripeIntegration extends BaseIntegration {
     headers?: Record<string, string>
   ): Promise<any> {
     const requestHeaders = {
-      'Authorization': `Bearer ${this.stripeConfig.secretKey}`,
+      Authorization: `Bearer ${this.stripeConfig.secretKey}`,
       'Content-Type': 'application/x-www-form-urlencoded',
       ...headers,
     };
@@ -423,7 +488,7 @@ export class StripeIntegration extends BaseIntegration {
       body = new URLSearchParams(this.flattenObject(data)).toString();
     }
 
-    const url = `${this.config.baseUrl}${endpoint}`;
+    let url = `${this.config.baseUrl}${endpoint}`;
     if (method === 'GET' && data) {
       const params = new URLSearchParams(this.flattenObject(data));
       url += `?${params.toString()}`;
@@ -436,8 +501,12 @@ export class StripeIntegration extends BaseIntegration {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(`Stripe API error: ${error.error?.message || response.statusText}`);
+      const errorResponse = await response.json();
+      throw new Error(
+        `Stripe API error: ${
+          (errorResponse as any)?.error?.message || response.statusText
+        }`
+      );
     }
 
     return await response.json();
@@ -445,28 +514,35 @@ export class StripeIntegration extends BaseIntegration {
 
   private flattenObject(obj: any, prefix = ''): Record<string, string> {
     const flattened: Record<string, string> = {};
-    
+
     for (const key in obj) {
       if (obj.hasOwnProperty(key)) {
         const newKey = prefix ? `${prefix}[${key}]` : key;
-        
-        if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+
+        if (
+          typeof obj[key] === 'object' &&
+          obj[key] !== null &&
+          !Array.isArray(obj[key])
+        ) {
           Object.assign(flattened, this.flattenObject(obj[key], newKey));
         } else {
           flattened[newKey] = String(obj[key]);
         }
       }
     }
-    
+
     return flattened;
   }
 
-  protected validateWebhookSignature(payload: string, signature: string): boolean {
+  protected validateWebhookSignature(
+    payload: string,
+    signature: string
+  ): boolean {
     const expectedSignature = crypto
       .createHmac('sha256', this.stripeConfig.webhookSecret)
       .update(payload, 'utf8')
       .digest('hex');
-    
+
     return signature.includes(expectedSignature);
   }
 }

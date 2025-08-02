@@ -128,6 +128,10 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS qb_created_time TIMESTAMP WITH TI
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS qb_updated_time TIMESTAMP WITH TIME ZONE;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS stripe_created_time TIMESTAMP WITH TIME ZONE;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS hubspot_synced_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS square_customer_id VARCHAR(50);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS square_created_time TIMESTAMP WITH TIME ZONE;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS salesforce_contact_id VARCHAR(50);
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS salesforce_synced_at TIMESTAMP WITH TIME ZONE;
 
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_number VARCHAR(50) UNIQUE;
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS job_type VARCHAR(100);
@@ -140,10 +144,13 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS customer_signature TEXT;
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS technician_notes TEXT;
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hubspot_deal_id VARCHAR(50);
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS hubspot_synced_at TIMESTAMP WITH TIME ZONE;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS salesforce_opportunity_id VARCHAR(50);
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS salesforce_synced_at TIMESTAMP WITH TIME ZONE;
 
 ALTER TABLE inventory ADD COLUMN IF NOT EXISTS supplier VARCHAR(255);
 ALTER TABLE inventory ADD COLUMN IF NOT EXISTS location VARCHAR(100);
 ALTER TABLE inventory ADD COLUMN IF NOT EXISTS ferguson_sku VARCHAR(100);
+ALTER TABLE inventory ADD COLUMN IF NOT EXISTS johnstone_sku VARCHAR(100);
 
 -- Create equipment table
 CREATE TABLE IF NOT EXISTS equipment (
@@ -158,6 +165,22 @@ CREATE TABLE IF NOT EXISTS equipment (
     purchase_date DATE,
     warranty_expiry DATE,
     notes TEXT,
+    -- Manufacturer integration fields
+    manufacturer VARCHAR(100),
+    model VARCHAR(100),
+    manufacturer_model_number VARCHAR(100),
+    manufacturer_description TEXT,
+    specifications JSONB,
+    service_manual_url TEXT,
+    parts_manual_url TEXT,
+    installation_manual_url TEXT,
+    warranty_start_date DATE,
+    warranty_end_date DATE,
+    warranty_status VARCHAR(50),
+    warranty_details JSONB,
+    warranty_synced_at TIMESTAMP WITH TIME ZONE,
+    carrier_data_synced_at TIMESTAMP WITH TIME ZONE,
+    trane_data_synced_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -178,6 +201,16 @@ CREATE INDEX IF NOT EXISTS idx_inventory_organization_id ON inventory(organizati
 CREATE INDEX IF NOT EXISTS idx_inventory_sku ON inventory(sku);
 CREATE INDEX IF NOT EXISTS idx_equipment_organization_id ON equipment(organization_id);
 CREATE INDEX IF NOT EXISTS idx_equipment_serial_number ON equipment(serial_number);
+
+-- Create indexes for integration fields
+CREATE INDEX IF NOT EXISTS idx_customers_quickbooks_id ON customers(quickbooks_id);
+CREATE INDEX IF NOT EXISTS idx_customers_stripe_customer_id ON customers(stripe_customer_id);
+CREATE INDEX IF NOT EXISTS idx_customers_square_customer_id ON customers(square_customer_id);
+CREATE INDEX IF NOT EXISTS idx_customers_hubspot_contact_id ON customers(hubspot_contact_id);
+CREATE INDEX IF NOT EXISTS idx_customers_salesforce_contact_id ON customers(salesforce_contact_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_hubspot_deal_id ON jobs(hubspot_deal_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_salesforce_opportunity_id ON jobs(salesforce_opportunity_id);
+CREATE INDEX IF NOT EXISTS idx_equipment_manufacturer ON equipment(manufacturer);
 
 -- Insert sample data for testing
 INSERT INTO organizations (name, email) VALUES 
@@ -214,9 +247,91 @@ INSERT INTO jobs (organization_id, customer_id, technician_id, title, descriptio
  '12345');
 
 -- Insert sample inventory items
-INSERT INTO inventory (organization_id, name, description, sku, category, unit_cost, unit_price, quantity_in_stock) VALUES 
+INSERT INTO inventory (organization_id, name, description, sku, category, unit_cost, unit_price, quantity_in_stock) VALUES
 ((SELECT id FROM organizations WHERE name = 'Acme Field Services'), 'Air Filter', 'Standard HVAC air filter', 'AF-STD-001', 'HVAC', 5.99, 12.99, 50),
 ((SELECT id FROM organizations WHERE name = 'Acme Field Services'), 'Thermostat', 'Digital programmable thermostat', 'TH-DIG-001', 'HVAC', 25.50, 49.99, 25);
+
+-- Create integration-specific tables
+CREATE TABLE IF NOT EXISTS manufacturer_parts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    part_number VARCHAR(100) NOT NULL,
+    manufacturer VARCHAR(100) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    list_price DECIMAL(10,2),
+    availability VARCHAR(50),
+    lead_time INTEGER,
+    specifications JSONB,
+    image_url TEXT,
+    data_sheet_url TEXT,
+    compatible_models JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(part_number, manufacturer)
+);
+
+CREATE TABLE IF NOT EXISTS distributor_products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    sku VARCHAR(100) NOT NULL,
+    distributor VARCHAR(100) NOT NULL,
+    manufacturer_part_number VARCHAR(100),
+    manufacturer VARCHAR(100),
+    description TEXT,
+    category VARCHAR(100),
+    list_price DECIMAL(10,2),
+    contract_price DECIMAL(10,2),
+    discount_percent DECIMAL(5,2),
+    price_breaks JSONB,
+    branch_stock INTEGER DEFAULT 0,
+    warehouse_stock INTEGER DEFAULT 0,
+    total_available INTEGER DEFAULT 0,
+    next_available_date DATE,
+    specifications JSONB,
+    pricing_updated_at TIMESTAMP WITH TIME ZONE,
+    availability_updated_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(sku, distributor)
+);
+
+CREATE TABLE IF NOT EXISTS distributor_orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    distributor VARCHAR(100) NOT NULL,
+    order_number VARCHAR(100) NOT NULL,
+    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+    status VARCHAR(50),
+    order_date DATE,
+    subtotal DECIMAL(10,2),
+    tax DECIMAL(10,2),
+    shipping DECIMAL(10,2),
+    total DECIMAL(10,2),
+    order_data JSONB,
+    last_synced_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(order_number, distributor)
+);
+
+-- Service bulletins table for manufacturer integrations
+CREATE TABLE IF NOT EXISTS service_bulletins (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    bulletin_number VARCHAR(100) NOT NULL,
+    manufacturer VARCHAR(100) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    affected_models JSONB,
+    severity VARCHAR(50), -- critical, important, informational
+    publish_date DATE,
+    category VARCHAR(100), -- safety, performance, maintenance, installation
+    document_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(bulletin_number, manufacturer)
+);
+
+-- Create indexes for service bulletins
+CREATE INDEX IF NOT EXISTS idx_service_bulletins_manufacturer ON service_bulletins(manufacturer);
+CREATE INDEX IF NOT EXISTS idx_service_bulletins_severity ON service_bulletins(severity);
 
 -- Insert sample equipment
 INSERT INTO equipment (organization_id, name, description, serial_number, category, status) VALUES 

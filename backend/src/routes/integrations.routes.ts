@@ -8,6 +8,7 @@ import {
   handleWebhook,
   getQuickBooksAuthUrl,
   createStripePayment,
+  createSquarePayment,
   lookupEquipment,
   getEquipmentWarranty,
   searchParts,
@@ -32,6 +33,9 @@ router.get('/quickbooks/auth-url', getQuickBooksAuthUrl);
 
 // Stripe specific routes
 router.post('/stripe/payment', createStripePayment);
+
+// Square specific routes
+router.post('/square/payment', createSquarePayment);
 
 // Equipment manufacturer routes
 router.get('/equipment/lookup', lookupEquipment);

@@ -1,26 +1,34 @@
 // Integration Management API Controller
 import { Request, Response } from 'express';
-import { 
+import {
   integrationManager,
   getQuickBooksIntegration,
   getStripeIntegration,
+  getSquareIntegration,
   getCarrierIntegration,
+  getTraneIntegration,
   getFergusonIntegration,
-  getHubSpotIntegration,
+  getJohnstoneIntegration,
+  // getHubSpotIntegration,
+  getSalesforceIntegration,
   syncCustomerToAllPlatforms,
   createJobInAllPlatforms,
   processPaymentWithStripe,
+  processPaymentWithSquare,
   lookupEquipmentInfo,
   searchPartsFromDistributors,
-  createAutomaticPartsOrder
+  createAutomaticPartsOrder,
 } from '../integrations';
 
 // Get integration status
-export const getIntegrationStatus = async (req: Request, res: Response): Promise<void> => {
+export const getIntegrationStatus = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const status = integrationManager.getIntegrationStatus();
     const enabledIntegrations = integrationManager.getEnabledIntegrations();
-    
+
     const detailedStatus = await Promise.all(
       enabledIntegrations.map(async (integration) => {
         const connectionTest = await integration.testConnection();
@@ -44,16 +52,19 @@ export const getIntegrationStatus = async (req: Request, res: Response): Promise
     res.status(500).json({
       success: false,
       message: 'Failed to get integration status',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
 // Test all integration connections
-export const testConnections = async (req: Request, res: Response): Promise<void> => {
+export const testConnections = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const results = await integrationManager.testAllConnections();
-    
+
     res.json({
       success: true,
       data: Object.fromEntries(results),
@@ -63,17 +74,20 @@ export const testConnections = async (req: Request, res: Response): Promise<void
     res.status(500).json({
       success: false,
       message: 'Failed to test connections',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
 // Sync data from all integrations
-export const syncAllData = async (req: Request, res: Response): Promise<void> => {
+export const syncAllData = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { entityType } = req.query;
     const results = await integrationManager.syncAllData(entityType as string);
-    
+
     res.json({
       success: true,
       data: Object.fromEntries(results),
@@ -83,17 +97,20 @@ export const syncAllData = async (req: Request, res: Response): Promise<void> =>
     res.status(500).json({
       success: false,
       message: 'Failed to sync data',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
 // Sync specific integration
-export const syncIntegration = async (req: Request, res: Response): Promise<void> => {
+export const syncIntegration = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { integrationName } = req.params;
     const { entityType } = req.query;
-    
+
     const integration = integrationManager.getIntegration(integrationName);
     if (!integration) {
       res.status(404).json({
@@ -103,8 +120,8 @@ export const syncIntegration = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const result = await integration.syncData(entityType as string || 'all');
-    
+    const result = await integration.syncData((entityType as string) || 'all');
+
     res.json({
       success: true,
       data: result,
@@ -114,17 +131,20 @@ export const syncIntegration = async (req: Request, res: Response): Promise<void
     res.status(500).json({
       success: false,
       message: `Failed to sync ${req.params.integrationName}`,
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
 // Handle webhooks
-export const handleWebhook = async (req: Request, res: Response): Promise<void> => {
+export const handleWebhook = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { integrationName } = req.params;
     const signature = req.headers['x-signature'] as string;
-    
+
     const payload = {
       integrationName,
       eventType: req.body.type || 'unknown',
@@ -134,20 +154,23 @@ export const handleWebhook = async (req: Request, res: Response): Promise<void> 
     };
 
     await integrationManager.handleWebhook(integrationName, payload);
-    
+
     res.json({ success: true });
   } catch (error) {
     console.error(`Webhook error for ${req.params.integrationName}:`, error);
     res.status(500).json({
       success: false,
       message: 'Webhook processing failed',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
 // QuickBooks specific endpoints
-export const getQuickBooksAuthUrl = async (req: Request, res: Response): Promise<void> => {
+export const getQuickBooksAuthUrl = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const quickbooks = getQuickBooksIntegration();
     if (!quickbooks) {
@@ -160,7 +183,7 @@ export const getQuickBooksAuthUrl = async (req: Request, res: Response): Promise
 
     // In a real implementation, generate OAuth URL
     const authUrl = `https://appcenter.intuit.com/connect/oauth2?client_id=${process.env.QUICKBOOKS_CLIENT_ID}&scope=com.intuit.quickbooks.accounting&redirect_uri=${process.env.QUICKBOOKS_REDIRECT_URI}&response_type=code&access_type=offline`;
-    
+
     res.json({
       success: true,
       data: { authUrl },
@@ -170,23 +193,26 @@ export const getQuickBooksAuthUrl = async (req: Request, res: Response): Promise
     res.status(500).json({
       success: false,
       message: 'Failed to generate auth URL',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
 // Stripe specific endpoints
-export const createStripePayment = async (req: Request, res: Response): Promise<void> => {
+export const createStripePayment = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { amount, currency, customerId, metadata } = req.body;
-    
+
     const paymentIntent = await processPaymentWithStripe({
       amount,
       currency,
       customerId,
       metadata,
     });
-    
+
     res.json({
       success: true,
       data: paymentIntent,
@@ -196,16 +222,51 @@ export const createStripePayment = async (req: Request, res: Response): Promise<
     res.status(500).json({
       success: false,
       message: 'Failed to create payment',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+};
+
+// Square specific endpoints
+export const createSquarePayment = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { amount, currency, sourceId, customerId, note, referenceId } =
+      req.body;
+
+    const payment = await processPaymentWithSquare({
+      amount,
+      currency,
+      sourceId,
+      customerId,
+      note,
+      referenceId,
+    });
+
+    res.json({
+      success: true,
+      data: payment,
+    });
+  } catch (error) {
+    console.error('Error creating Square payment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create payment',
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
 // Equipment manufacturer endpoints
-export const lookupEquipment = async (req: Request, res: Response): Promise<void> => {
+export const lookupEquipment = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { serialNumber, manufacturer } = req.query;
-    
+
     if (!serialNumber || !manufacturer) {
       res.status(400).json({
         success: false,
@@ -218,7 +279,7 @@ export const lookupEquipment = async (req: Request, res: Response): Promise<void
       serialNumber as string,
       manufacturer as string
     );
-    
+
     res.json({
       success: true,
       data: equipmentInfo,
@@ -228,15 +289,18 @@ export const lookupEquipment = async (req: Request, res: Response): Promise<void
     res.status(500).json({
       success: false,
       message: 'Failed to lookup equipment',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
-export const getEquipmentWarranty = async (req: Request, res: Response): Promise<void> => {
+export const getEquipmentWarranty = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { serialNumber } = req.params;
-    
+
     const carrier = getCarrierIntegration();
     if (!carrier?.isEnabled) {
       res.status(404).json({
@@ -247,7 +311,7 @@ export const getEquipmentWarranty = async (req: Request, res: Response): Promise
     }
 
     const warranty = await carrier.checkWarranty(serialNumber);
-    
+
     res.json({
       success: true,
       data: warranty,
@@ -257,22 +321,25 @@ export const getEquipmentWarranty = async (req: Request, res: Response): Promise
     res.status(500).json({
       success: false,
       message: 'Failed to check warranty',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
 // Parts distributor endpoints
-export const searchParts = async (req: Request, res: Response): Promise<void> => {
+export const searchParts = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { keyword, manufacturer, partNumber } = req.query;
-    
+
     const parts = await searchPartsFromDistributors({
       keyword: keyword as string,
       manufacturer: manufacturer as string,
       partNumber: partNumber as string,
     });
-    
+
     res.json({
       success: true,
       data: parts,
@@ -282,15 +349,18 @@ export const searchParts = async (req: Request, res: Response): Promise<void> =>
     res.status(500).json({
       success: false,
       message: 'Failed to search parts',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
-export const createPartsOrder = async (req: Request, res: Response): Promise<void> => {
+export const createPartsOrder = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { jobId } = req.body;
-    
+
     if (!jobId) {
       res.status(400).json({
         success: false,
@@ -300,7 +370,7 @@ export const createPartsOrder = async (req: Request, res: Response): Promise<voi
     }
 
     const order = await createAutomaticPartsOrder(jobId);
-    
+
     res.json({
       success: true,
       data: order,
@@ -310,18 +380,21 @@ export const createPartsOrder = async (req: Request, res: Response): Promise<voi
     res.status(500).json({
       success: false,
       message: 'Failed to create parts order',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
 
 // Customer sync endpoints
-export const syncCustomer = async (req: Request, res: Response): Promise<void> => {
+export const syncCustomer = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { customerId } = req.params;
-    
+
     await syncCustomerToAllPlatforms(customerId);
-    
+
     res.json({
       success: true,
       message: 'Customer synced to all platforms',
@@ -331,7 +404,7 @@ export const syncCustomer = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({
       success: false,
       message: 'Failed to sync customer',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };
@@ -340,9 +413,9 @@ export const syncCustomer = async (req: Request, res: Response): Promise<void> =
 export const syncJob = async (req: Request, res: Response): Promise<void> => {
   try {
     const { jobId } = req.params;
-    
+
     await createJobInAllPlatforms(jobId);
-    
+
     res.json({
       success: true,
       message: 'Job synced to all platforms',
@@ -352,7 +425,7 @@ export const syncJob = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({
       success: false,
       message: 'Failed to sync job',
-      error: error.message,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 };

@@ -6,9 +6,12 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import LoadingSpinner from '../components/LoadingSpinner';
 import StatusBadge from '../components/StatusBadge';
-import FormModal from '../components/FormModal';
+import ImprovedFormModal from '../components/ImprovedFormModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Alert from '../components/Alert';
+import MobileTable from '../components/MobileTable';
+import MobileSearch from '../components/MobileSearch';
+import { equipmentFormFields } from '../config/formConfigs';
 
 const EquipmentPage: React.FC = () => {
   const [equipment, setEquipment] = useState<any[]>([]);
@@ -99,44 +102,19 @@ const EquipmentPage: React.FC = () => {
     }
   };
 
-  const filteredEquipment = equipment.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.status.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredEquipment = equipment.filter(
+    (item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.status.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  // Equipment form fields
-  const equipmentFields = [
-    { name: 'name', label: 'Equipment Name', type: 'text' as const, required: true },
-    { name: 'serialNumber', label: 'Serial Number', type: 'text' as const },
-    { name: 'description', label: 'Description', type: 'textarea' as const },
-    { name: 'category', label: 'Category', type: 'text' as const },
-    {
-      name: 'status',
-      label: 'Status',
-      type: 'select' as const,
-      required: true,
-      options: [
-        { value: 'available', label: 'Available' },
-        { value: 'in_use', label: 'In Use' },
-        { value: 'maintenance', label: 'Maintenance' },
-        { value: 'retired', label: 'Retired' }
-      ]
-    },
-    { name: 'assignedTo', label: 'Assigned To', type: 'text' as const },
-    { name: 'purchaseDate', label: 'Purchase Date', type: 'date' as const },
-    { name: 'warrantyExpiry', label: 'Warranty Expiry', type: 'date' as const },
-    { name: 'notes', label: 'Notes', type: 'textarea' as const }
-  ];
 
   return (
     <div className="space-y-6">
       <div className="mb-2">
         <h1 className="text-3xl font-bold text-gray-900">Equipment</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Manage equipment and tools
-        </p>
+        <p className="mt-2 text-sm text-gray-600">Manage equipment and tools</p>
       </div>
 
       {error && (
@@ -144,23 +122,51 @@ const EquipmentPage: React.FC = () => {
       )}
 
       {success && (
-        <Alert type="success" message={success} onClose={() => setSuccess(null)} />
+        <Alert
+          type="success"
+          message={success}
+          onClose={() => setSuccess(null)}
+        />
       )}
 
       {/* Search */}
       <Card>
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <FaSearch className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Search equipment..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        <MobileSearch
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          placeholder="Search equipment..."
+          showFilters={true}
+          filters={[
+            {
+              key: 'status',
+              label: 'Status',
+              type: 'select',
+              options: [
+                { value: 'available', label: 'Available' },
+                { value: 'in_use', label: 'In Use' },
+                { value: 'maintenance', label: 'Under Maintenance' },
+                { value: 'out_of_service', label: 'Out of Service' },
+              ],
+            },
+            {
+              key: 'category',
+              label: 'Category',
+              type: 'select',
+              options: [
+                { value: 'drill', label: 'Drill' },
+                { value: 'excavator', label: 'Excavator' },
+                { value: 'bulldozer', label: 'Bulldozer' },
+                { value: 'crane', label: 'Crane' },
+                { value: 'compressor', label: 'Compressor' },
+                { value: 'generator', label: 'Generator' },
+                { value: 'pump', label: 'Pump' },
+                { value: 'truck', label: 'Truck' },
+                { value: 'trailer', label: 'Trailer' },
+                { value: 'other', label: 'Other' },
+              ],
+            },
+          ]}
+        />
       </Card>
 
       {/* Equipment Table */}
@@ -172,110 +178,82 @@ const EquipmentPage: React.FC = () => {
           </Button>
         }
       >
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <LoadingSpinner size="large" />
-          </div>
-        ) : (
-          <div className="overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Equipment
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Serial #
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Category
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Assigned To
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Purchase Date
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredEquipment.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                      <div className="text-sm text-gray-500">{item.description}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.serialNumber}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.category}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.assignedTo}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={item.status.replace('_', '-')} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.purchaseDate ? new Date(item.purchaseDate).toLocaleDateString() : ''}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditItem(item)}
-                          icon={FaEdit}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => handleDeleteItem(item)}
-                          icon={FaTrash}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredEquipment.length === 0 && !loading && (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
-                      <div className="flex flex-col items-center justify-center py-4">
-                        <FaToolbox className="h-8 w-8 text-gray-300 mb-2" />
-                        <p>No equipment found</p>
-                        {searchTerm && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            Try adjusting your search criteria
-                          </p>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <MobileTable
+          data={filteredEquipment}
+          loading={loading}
+          onEdit={handleEditItem}
+          onDelete={handleDeleteItem}
+          emptyMessage={
+            searchTerm
+              ? 'No equipment found matching your search'
+              : 'No equipment found'
+          }
+          emptyIcon={FaToolbox}
+          columns={[
+            {
+              key: 'name',
+              label: 'Equipment',
+              mobile: true,
+              desktop: true,
+              render: (value, item) => (
+                <div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {value}
+                  </div>
+                  {item.description && (
+                    <div className="text-sm text-gray-500">
+                      {item.description}
+                    </div>
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: 'serial_number',
+              label: 'Serial Number',
+              mobile: true,
+              desktop: true,
+            },
+            {
+              key: 'category',
+              label: 'Category',
+              mobile: true,
+              desktop: true,
+            },
+            {
+              key: 'assigned_to',
+              label: 'Assigned To',
+              mobile: true,
+              desktop: true,
+            },
+            {
+              key: 'status',
+              label: 'Status',
+              mobile: true,
+              desktop: true,
+              render: (value) => (
+                <StatusBadge status={value?.replace('_', '-')} />
+              ),
+            },
+            {
+              key: 'purchase_date',
+              label: 'Purchase Date',
+              mobile: false,
+              desktop: true,
+              render: (value) =>
+                value ? new Date(value).toLocaleDateString() : '-',
+            },
+          ]}
+        />
       </Card>
 
       {/* Form Modal */}
-      <FormModal
+      <ImprovedFormModal
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
         onSubmit={handleFormSubmit}
         title={editingItem ? 'Edit Equipment' : 'Add Equipment'}
-        fields={equipmentFields}
+        fields={equipmentFormFields}
         initialData={editingItem || {}}
         loading={formLoading}
         submitText={editingItem ? 'Update Equipment' : 'Create Equipment'}

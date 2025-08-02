@@ -1,5 +1,10 @@
 // Ferguson Parts Distributor Integration
-import { BaseIntegration, IntegrationConfig, WebhookPayload, SyncResult } from '../base/IntegrationManager';
+import {
+  BaseIntegration,
+  IntegrationConfig,
+  WebhookPayload,
+  SyncResult,
+} from '../base/IntegrationManager';
 import { query } from '../../database';
 
 export interface FergusonConfig extends IntegrationConfig {
@@ -86,9 +91,10 @@ export class FergusonIntegration extends BaseIntegration {
   constructor(config: FergusonConfig) {
     super(config);
     this.fergusonConfig = config;
-    this.config.baseUrl = config.environment === 'production'
-      ? 'https://api.ferguson.com/v1'
-      : 'https://sandbox-api.ferguson.com/v1';
+    this.config.baseUrl =
+      config.environment === 'production'
+        ? 'https://api.ferguson.com/v1'
+        : 'https://sandbox-api.ferguson.com/v1';
   }
 
   async authenticate(): Promise<boolean> {
@@ -96,7 +102,7 @@ export class FergusonIntegration extends BaseIntegration {
       const response = await this.makeRequest('GET', '/account/verify', {
         accountNumber: this.fergusonConfig.accountNumber,
       });
-      
+
       return response && response.status === 'active';
     } catch (error) {
       this.logger.error('Ferguson authentication failed', error);
@@ -141,8 +147,13 @@ export class FergusonIntegration extends BaseIntegration {
       }
     } catch (error) {
       result.success = false;
-      result.errors.push(error.message);
-      this.logger.error('Ferguson sync failed', error);
+      result.errors.push(
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      this.logger.error(
+        'Ferguson sync failed',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
     }
 
     this.emit('sync:complete', result);
@@ -152,7 +163,7 @@ export class FergusonIntegration extends BaseIntegration {
   async handleWebhook(payload: WebhookPayload): Promise<void> {
     try {
       const event = payload.data;
-      
+
       switch (event.type) {
         case 'order.status_changed':
           await this.handleOrderStatusChange(event.data);
@@ -217,11 +228,15 @@ export class FergusonIntegration extends BaseIntegration {
 
   async getProductAvailability(skus: string[]): Promise<Record<string, any>> {
     try {
-      const response = await this.makeRequest('POST', '/products/availability', {
-        skus,
-        accountNumber: this.fergusonConfig.accountNumber,
-        branchCode: this.fergusonConfig.branchCode,
-      });
+      const response = await this.makeRequest(
+        'POST',
+        '/products/availability',
+        {
+          skus,
+          accountNumber: this.fergusonConfig.accountNumber,
+          branchCode: this.fergusonConfig.branchCode,
+        }
+      );
 
       return response?.availability || {};
     } catch (error) {
@@ -231,7 +246,9 @@ export class FergusonIntegration extends BaseIntegration {
   }
 
   // Pricing methods
-  async getProductPricing(skus: string[]): Promise<Record<string, FergusonPricing>> {
+  async getProductPricing(
+    skus: string[]
+  ): Promise<Record<string, FergusonPricing>> {
     try {
       const response = await this.makeRequest('POST', '/pricing/products', {
         skus,
@@ -245,7 +262,10 @@ export class FergusonIntegration extends BaseIntegration {
     }
   }
 
-  async getContractPricing(sku: string, quantity: number): Promise<number | null> {
+  async getContractPricing(
+    sku: string,
+    quantity: number
+  ): Promise<number | null> {
     try {
       const response = await this.makeRequest('GET', '/pricing/contract', {
         sku,
@@ -307,10 +327,14 @@ export class FergusonIntegration extends BaseIntegration {
 
   async cancelOrder(orderNumber: string, reason?: string): Promise<boolean> {
     try {
-      const response = await this.makeRequest('POST', `/orders/${orderNumber}/cancel`, {
-        reason,
-        accountNumber: this.fergusonConfig.accountNumber,
-      });
+      const response = await this.makeRequest(
+        'POST',
+        `/orders/${orderNumber}/cancel`,
+        {
+          reason,
+          accountNumber: this.fergusonConfig.accountNumber,
+        }
+      );
 
       return response?.success === true;
     } catch (error) {
@@ -333,14 +357,18 @@ export class FergusonIntegration extends BaseIntegration {
       }
 
       // Check Ferguson availability and pricing
-      const skus = jobParts.rows.map(part => part.sku).filter(Boolean);
+      const skus = jobParts.rows.map((part) => part.sku).filter(Boolean);
       const availability = await this.getProductAvailability(skus);
       const pricing = await this.getProductPricing(skus);
 
       // Create order items
       const orderItems = jobParts.rows
-        .filter(part => part.sku && availability[part.sku]?.totalAvailable >= part.quantity_used)
-        .map(part => ({
+        .filter(
+          (part) =>
+            part.sku &&
+            availability[part.sku]?.totalAvailable >= part.quantity_used
+        )
+        .map((part) => ({
           sku: part.sku,
           quantity: part.quantity_used,
         }));
@@ -361,7 +389,7 @@ export class FergusonIntegration extends BaseIntegration {
       }
 
       const job = jobQuery.rows[0];
-      
+
       const order = await this.createOrder({
         customerPO: `JOB-${job.job_number}`,
         requestedDeliveryDate: job.scheduled_date,
@@ -383,7 +411,10 @@ export class FergusonIntegration extends BaseIntegration {
 
       return order;
     } catch (error) {
-      this.logger.error(`Automatic order creation failed for job ${jobId}`, error);
+      this.logger.error(
+        `Automatic order creation failed for job ${jobId}`,
+        error
+      );
       return null;
     }
   }
@@ -392,7 +423,7 @@ export class FergusonIntegration extends BaseIntegration {
   private async syncProducts(result: SyncResult): Promise<void> {
     // Sync products for categories we commonly use
     const categories = ['HVAC', 'Plumbing', 'Electrical'];
-    
+
     for (const category of categories) {
       try {
         const searchResult = await this.searchProducts({
@@ -405,7 +436,11 @@ export class FergusonIntegration extends BaseIntegration {
           result.recordsProcessed++;
         }
       } catch (error) {
-        result.errors.push(`Category ${category}: ${error.message}`);
+        result.errors.push(
+          `Category ${category}: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
       }
     }
   }
@@ -416,18 +451,22 @@ export class FergusonIntegration extends BaseIntegration {
       'SELECT ferguson_sku FROM inventory WHERE ferguson_sku IS NOT NULL'
     );
 
-    const skus = productsQuery.rows.map(row => row.ferguson_sku);
-    
+    const skus = productsQuery.rows.map((row) => row.ferguson_sku);
+
     if (skus.length > 0) {
       try {
         const pricing = await this.getProductPricing(skus);
-        
+
         for (const [sku, priceData] of Object.entries(pricing)) {
           await this.updateProductPricing(sku, priceData);
           result.recordsProcessed++;
         }
       } catch (error) {
-        result.errors.push(`Pricing sync: ${error.message}`);
+        result.errors.push(
+          `Pricing sync: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
       }
     }
   }
@@ -438,39 +477,53 @@ export class FergusonIntegration extends BaseIntegration {
       'SELECT ferguson_sku FROM inventory WHERE ferguson_sku IS NOT NULL'
     );
 
-    const skus = productsQuery.rows.map(row => row.ferguson_sku);
-    
+    const skus = productsQuery.rows.map((row) => row.ferguson_sku);
+
     if (skus.length > 0) {
       try {
         const availability = await this.getProductAvailability(skus);
-        
+
         for (const [sku, availData] of Object.entries(availability)) {
           await this.updateProductAvailability(sku, availData);
           result.recordsProcessed++;
         }
       } catch (error) {
-        result.errors.push(`Availability sync: ${error.message}`);
+        result.errors.push(
+          `Availability sync: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
       }
     }
   }
 
-  private async syncOrders(result: SyncResult, lastSyncTime?: Date): Promise<void> {
+  private async syncOrders(
+    result: SyncResult,
+    lastSyncTime?: Date
+  ): Promise<void> {
     // Sync recent orders
     const ordersQuery = await query(
       'SELECT ferguson_order_number FROM distributor_orders WHERE distributor = $1 AND (last_synced_at IS NULL OR last_synced_at < $2)',
-      ['Ferguson', lastSyncTime || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)]
+      [
+        'Ferguson',
+        lastSyncTime || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      ]
     );
 
     for (const orderRow of ordersQuery.rows) {
       try {
         const order = await this.getOrderStatus(orderRow.ferguson_order_number);
-        
+
         if (order) {
           await this.updateOrderStatus(order);
           result.recordsProcessed++;
         }
       } catch (error) {
-        result.errors.push(`Order ${orderRow.ferguson_order_number}: ${error.message}`);
+        result.errors.push(
+          `Order ${orderRow.ferguson_order_number}: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`
+        );
       }
     }
   }
@@ -522,7 +575,10 @@ export class FergusonIntegration extends BaseIntegration {
     }
   }
 
-  private async updateProductPricing(sku: string, pricing: FergusonPricing): Promise<void> {
+  private async updateProductPricing(
+    sku: string,
+    pricing: FergusonPricing
+  ): Promise<void> {
     await query(
       `UPDATE distributor_products SET 
        list_price = $3, contract_price = $4, discount_percent = $5,
@@ -539,7 +595,10 @@ export class FergusonIntegration extends BaseIntegration {
     );
   }
 
-  private async updateProductAvailability(sku: string, availability: any): Promise<void> {
+  private async updateProductAvailability(
+    sku: string,
+    availability: any
+  ): Promise<void> {
     await query(
       `UPDATE distributor_products SET 
        branch_stock = $3, warehouse_stock = $4, total_available = $5,
@@ -551,12 +610,17 @@ export class FergusonIntegration extends BaseIntegration {
         availability.branchStock,
         availability.warehouseStock,
         availability.totalAvailable,
-        availability.nextAvailableDate ? new Date(availability.nextAvailableDate) : null,
+        availability.nextAvailableDate
+          ? new Date(availability.nextAvailableDate)
+          : null,
       ]
     );
   }
 
-  private async recordOrder(order: FergusonOrder, jobId?: string): Promise<void> {
+  private async recordOrder(
+    order: FergusonOrder,
+    jobId?: string
+  ): Promise<void> {
     await query(
       `INSERT INTO distributor_orders (
         distributor, order_number, job_id, status, order_date,
@@ -589,7 +653,9 @@ export class FergusonIntegration extends BaseIntegration {
   // Webhook handlers
   private async handleOrderStatusChange(data: any): Promise<void> {
     await this.updateOrderStatus(data.order);
-    this.logger.info(`Order status updated: ${data.order.orderNumber} -> ${data.order.status}`);
+    this.logger.info(
+      `Order status updated: ${data.order.orderNumber} -> ${data.order.status}`
+    );
   }
 
   private async handlePriceChange(data: any): Promise<void> {

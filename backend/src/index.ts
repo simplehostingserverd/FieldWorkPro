@@ -15,6 +15,7 @@ import {
   initializeIntegrations,
   authenticateIntegrations,
 } from './integrations';
+import cacheService from './services/cache';
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +49,10 @@ app.use('/api/integrations', integrationsRoutes);
 // Initialize integrations
 async function startServer() {
   try {
+    // Initialize cache service
+    console.log('🚀 Initializing cache service...');
+    await cacheService.connect();
+
     // Initialize all integrations
     initializeIntegrations();
 
@@ -56,11 +61,12 @@ async function startServer() {
 
     // Start server
     app.listen(PORT, () => {
-      console.log(`FieldPro API server running on port ${PORT}`);
-      console.log('Integrations initialized and ready');
+      console.log(`🎉 FieldPro API server running on port ${PORT}`);
+      console.log('✅ Cache service initialized');
+      console.log('✅ Integrations initialized and ready');
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 }

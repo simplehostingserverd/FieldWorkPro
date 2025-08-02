@@ -10,6 +10,11 @@
     "frontend": "npm run start --prefix web-dashboard",
     "install:all": "npm install && npm install --prefix backend && npm install --prefix web-dashboard",
     "build": "npm run build --prefix backend && npm run build --prefix web-dashboard",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "db:setup": "cd backend && node setup-db.js",
+    "cache:flush": "cd backend && node -e \"require('./services/cache').connect().then(() => require('./services/cache').flush()).then(() => process.exit(0))\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
