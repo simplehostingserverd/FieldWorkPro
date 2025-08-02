@@ -10,6 +10,11 @@ import invoicesRoutes from './routes/invoices.routes';
 import paymentsRoutes from './routes/payments.routes';
 import inventoryRoutes from './routes/inventory.routes';
 import equipmentRoutes from './routes/equipment.routes';
+import integrationsRoutes from './routes/integrations.routes';
+import {
+  initializeIntegrations,
+  authenticateIntegrations,
+} from './integrations';
 
 // Load environment variables
 dotenv.config();
@@ -38,10 +43,28 @@ app.use('/api/invoices', invoicesRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/equipment', equipmentRoutes);
+app.use('/api/integrations', integrationsRoutes);
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`FieldPro API server running on port ${PORT}`);
-});
+// Initialize integrations
+async function startServer() {
+  try {
+    // Initialize all integrations
+    initializeIntegrations();
+
+    // Authenticate integrations
+    await authenticateIntegrations();
+
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`FieldPro API server running on port ${PORT}`);
+      console.log('Integrations initialized and ready');
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export default app;

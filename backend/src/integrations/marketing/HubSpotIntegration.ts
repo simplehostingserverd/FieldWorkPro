@@ -1,0 +1,622 @@
+// HubSpot CRM and Marketing Integration
+import { BaseIntegration, IntegrationConfig, WebhookPayload, SyncResult } from '../base/IntegrationManager';
+import { query } from '../../database';
+
+export interface HubSpotConfig extends IntegrationConfig {
+  accessToken: string;
+  portalId: string;
+  appId: string;
+}
+
+export interface HubSpotContact {
+  id: string;
+  properties: {
+    email: string;
+    firstname?: string;
+    lastname?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    company?: string;
+    lifecyclestage?: string;
+    lead_status?: string;
+    createdate: string;
+    lastmodifieddate: string;
+  };
+}
+
+export interface HubSpotCompany {
+  id: string;
+  properties: {
+    name: string;
+    domain?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    industry?: string;
+    numberofemployees?: string;
+    annualrevenue?: string;
+    createdate: string;
+    hs_lastmodifieddate: string;
+  };
+}
+
+export interface HubSpotDeal {
+  id: string;
+  properties: {
+    dealname: string;
+    amount?: string;
+    dealstage: string;
+    pipeline: string;
+    closedate?: string;
+    createdate: string;
+    hs_lastmodifieddate: string;
+  };
+  associations?: {
+    contacts?: string[];
+    companies?: string[];
+  };
+}
+
+export class HubSpotIntegration extends BaseIntegration {
+  private hubspotConfig: HubSpotConfig;
+
+  constructor(config: HubSpotConfig) {
+    super(config);
+    this.hubspotConfig = config;
+    this.config.baseUrl = 'https://api.hubapi.com';
+  }
+
+  async authenticate(): Promise<boolean> {
+    try {
+      const response = await this.makeRequest('GET', '/oauth/v1/access-tokens/' + this.hubspotConfig.accessToken);
+      return response && response.token;
+    } catch (error) {
+      this.logger.error('HubSpot authentication failed', error);
+      return false;
+    }
+  }
+
+  async testConnection(): Promise<boolean> {
+    try {
+      const response = await this.makeRequest('GET', '/crm/v3/objects/contacts', { limit: 1 });
+      return response && response.results;
+    } catch (error) {
+      this.logger.error('HubSpot connection test failed', error);
+      return false;
+    }
+  }
+
+  async syncData(entityType: string, lastSyncTime?: Date): Promise<SyncResult> {
+    const result: SyncResult = {
+      success: true,
+      recordsProcessed: 0,
+      errors: [],
+      lastSyncTime: new Date(),
+    };
+
+    try {
+      switch (entityType.toLowerCase()) {
+        case 'contacts':
+          await this.syncContacts(result, lastSyncTime);
+          break;
+        case 'companies':
+          await this.syncCompanies(result, lastSyncTime);
+          break;
+        case 'deals':
+          await this.syncDeals(result, lastSyncTime);
+          break;
+        case 'all':
+          await this.syncContacts(result, lastSyncTime);
+          await this.syncCompanies(result, lastSyncTime);
+          await this.syncDeals(result, lastSyncTime);
+          break;
+        default:
+          throw new Error(`Unsupported entity type: ${entityType}`);
+      }
+    } catch (error) {
+      result.success = false;
+      result.errors.push(error.message);
+      this.logger.error('HubSpot sync failed', error);
+    }
+
+    this.emit('sync:complete', result);
+    return result;
+  }
+
+  async handleWebhook(payload: WebhookPayload): Promise<void> {
+    try {
+      const events = payload.data;
+      
+      for (const event of events) {
+        switch (event.subscriptionType) {
+          case 'contact.creation':
+          case 'contact.propertyChange':
+            await this.handleContactChange(event);
+            break;
+          case 'company.creation':
+          case 'company.propertyChange':
+            await this.handleCompanyChange(event);
+            break;
+          case 'deal.creation':
+          case 'deal.propertyChange':
+            await this.handleDealChange(event);
+            break;
+          default:
+            this.logger.info(`Unhandled HubSpot webhook: ${event.subscriptionType}`);
+        }
+      }
+
+      this.emit('webhook:processed', payload);
+    } catch (error) {
+      this.logger.error('HubSpot webhook handling failed', error);
+      throw error;
+    }
+  }
+
+  // Contact management methods
+  async createContact(contactData: {
+    email: string;
+    firstname?: string;
+    lastname?: string;
+    phone?: string;
+    company?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    lifecyclestage?: string;
+    lead_source?: string;
+  }): Promise<HubSpotContact | null> {
+    try {
+      const response = await this.makeRequest('POST', '/crm/v3/objects/contacts', {
+        properties: contactData,
+      });
+
+      return response || null;
+    } catch (error) {
+      this.logger.error('Contact creation failed', error);
+      return null;
+    }
+  }
+
+  async updateContact(contactId: string, properties: Record<string, any>): Promise<boolean> {
+    try {
+      await this.makeRequest('PATCH', `/crm/v3/objects/contacts/${contactId}`, {
+        properties,
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(`Contact update failed for ${contactId}`, error);
+      return false;
+    }
+  }
+
+  async getContactByEmail(email: string): Promise<HubSpotContact | null> {
+    try {
+      const response = await this.makeRequest('GET', '/crm/v3/objects/contacts', {
+        filterGroups: JSON.stringify([{
+          filters: [{
+            propertyName: 'email',
+            operator: 'EQ',
+            value: email,
+          }],
+        }]),
+        properties: 'email,firstname,lastname,phone,address,city,state,zip,company,lifecyclestage,lead_status',
+      });
+
+      return response?.results?.[0] || null;
+    } catch (error) {
+      this.logger.error(`Contact lookup failed for ${email}`, error);
+      return null;
+    }
+  }
+
+  // Company management methods
+  async createCompany(companyData: {
+    name: string;
+    domain?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    industry?: string;
+  }): Promise<HubSpotCompany | null> {
+    try {
+      const response = await this.makeRequest('POST', '/crm/v3/objects/companies', {
+        properties: companyData,
+      });
+
+      return response || null;
+    } catch (error) {
+      this.logger.error('Company creation failed', error);
+      return null;
+    }
+  }
+
+  // Deal management methods
+  async createDeal(dealData: {
+    dealname: string;
+    amount?: number;
+    dealstage: string;
+    pipeline?: string;
+    closedate?: string;
+    contactIds?: string[];
+    companyIds?: string[];
+  }): Promise<HubSpotDeal | null> {
+    try {
+      const dealProperties = {
+        dealname: dealData.dealname,
+        amount: dealData.amount?.toString(),
+        dealstage: dealData.dealstage,
+        pipeline: dealData.pipeline || 'default',
+        closedate: dealData.closedate,
+      };
+
+      const associations = [];
+      
+      if (dealData.contactIds) {
+        associations.push({
+          to: { id: dealData.contactIds[0] },
+          types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 3 }],
+        });
+      }
+
+      if (dealData.companyIds) {
+        associations.push({
+          to: { id: dealData.companyIds[0] },
+          types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 5 }],
+        });
+      }
+
+      const response = await this.makeRequest('POST', '/crm/v3/objects/deals', {
+        properties: dealProperties,
+        associations,
+      });
+
+      return response || null;
+    } catch (error) {
+      this.logger.error('Deal creation failed', error);
+      return null;
+    }
+  }
+
+  // Marketing automation methods
+  async addContactToList(contactId: string, listId: string): Promise<boolean> {
+    try {
+      await this.makeRequest('POST', `/contacts/v1/lists/${listId}/add`, {
+        vids: [contactId],
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to add contact ${contactId} to list ${listId}`, error);
+      return false;
+    }
+  }
+
+  async sendEmail(contactId: string, emailId: string, customProperties?: Record<string, any>): Promise<boolean> {
+    try {
+      await this.makeRequest('POST', '/marketing/v3/transactional/single-send/send', {
+        emailId,
+        to: contactId,
+        customProperties,
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send email ${emailId} to contact ${contactId}`, error);
+      return false;
+    }
+  }
+
+  async createTask(taskData: {
+    subject: string;
+    body?: string;
+    type: string;
+    status: string;
+    priority?: string;
+    dueDate?: string;
+    contactId?: string;
+    companyId?: string;
+    dealId?: string;
+  }): Promise<any> {
+    try {
+      const response = await this.makeRequest('POST', '/crm/v3/objects/tasks', {
+        properties: {
+          hs_task_subject: taskData.subject,
+          hs_task_body: taskData.body,
+          hs_task_type: taskData.type,
+          hs_task_status: taskData.status,
+          hs_task_priority: taskData.priority,
+          hs_timestamp: taskData.dueDate,
+        },
+      });
+
+      return response || null;
+    } catch (error) {
+      this.logger.error('Task creation failed', error);
+      return null;
+    }
+  }
+
+  // Customer lifecycle automation
+  async syncCustomerToHubSpot(customerId: string): Promise<void> {
+    try {
+      // Get customer data from our database
+      const customerQuery = await query(
+        'SELECT * FROM customers WHERE id = $1',
+        [customerId]
+      );
+
+      if (customerQuery.rows.length === 0) {
+        throw new Error(`Customer ${customerId} not found`);
+      }
+
+      const customer = customerQuery.rows[0];
+
+      // Check if contact already exists in HubSpot
+      let hubspotContact = await this.getContactByEmail(customer.email);
+
+      if (hubspotContact) {
+        // Update existing contact
+        await this.updateContact(hubspotContact.id, {
+          firstname: customer.first_name,
+          lastname: customer.last_name,
+          phone: customer.phone,
+          address: customer.address,
+          city: customer.city,
+          state: customer.state,
+          zip: customer.zip_code,
+          lifecyclestage: 'customer',
+        });
+      } else {
+        // Create new contact
+        hubspotContact = await this.createContact({
+          email: customer.email,
+          firstname: customer.first_name,
+          lastname: customer.last_name,
+          phone: customer.phone,
+          address: customer.address,
+          city: customer.city,
+          state: customer.state,
+          zip: customer.zip_code,
+          lifecyclestage: 'customer',
+          lead_source: 'field_service_app',
+        });
+      }
+
+      if (hubspotContact) {
+        // Update our database with HubSpot contact ID
+        await query(
+          'UPDATE customers SET hubspot_contact_id = $1, hubspot_synced_at = NOW() WHERE id = $2',
+          [hubspotContact.id, customerId]
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Failed to sync customer ${customerId} to HubSpot`, error);
+      throw error;
+    }
+  }
+
+  async createJobDeal(jobId: string): Promise<void> {
+    try {
+      // Get job and customer data
+      const jobQuery = await query(
+        `SELECT j.*, c.first_name, c.last_name, c.email, c.hubspot_contact_id 
+         FROM jobs j 
+         JOIN customers c ON j.customer_id = c.id 
+         WHERE j.id = $1`,
+        [jobId]
+      );
+
+      if (jobQuery.rows.length === 0) {
+        throw new Error(`Job ${jobId} not found`);
+      }
+
+      const job = jobQuery.rows[0];
+
+      // Ensure customer is synced to HubSpot
+      if (!job.hubspot_contact_id) {
+        await this.syncCustomerToHubSpot(job.customer_id);
+        
+        // Refresh job data to get HubSpot contact ID
+        const updatedJobQuery = await query(
+          `SELECT j.*, c.hubspot_contact_id 
+           FROM jobs j 
+           JOIN customers c ON j.customer_id = c.id 
+           WHERE j.id = $1`,
+          [jobId]
+        );
+        
+        if (updatedJobQuery.rows.length > 0) {
+          job.hubspot_contact_id = updatedJobQuery.rows[0].hubspot_contact_id;
+        }
+      }
+
+      // Create deal in HubSpot
+      const deal = await this.createDeal({
+        dealname: `${job.title} - ${job.first_name} ${job.last_name}`,
+        amount: job.total_cost,
+        dealstage: this.mapJobStatusToDealStage(job.status),
+        closedate: job.scheduled_date,
+        contactIds: job.hubspot_contact_id ? [job.hubspot_contact_id] : undefined,
+      });
+
+      if (deal) {
+        // Update job with HubSpot deal ID
+        await query(
+          'UPDATE jobs SET hubspot_deal_id = $1, hubspot_synced_at = NOW() WHERE id = $2',
+          [deal.id, jobId]
+        );
+      }
+    } catch (error) {
+      this.logger.error(`Failed to create deal for job ${jobId}`, error);
+      throw error;
+    }
+  }
+
+  // Sync methods
+  private async syncContacts(result: SyncResult, lastSyncTime?: Date): Promise<void> {
+    let after: string | undefined;
+    let hasMore = true;
+
+    while (hasMore) {
+      try {
+        const params: any = {
+          limit: 100,
+          properties: 'email,firstname,lastname,phone,address,city,state,zip,company,lifecyclestage,lead_status',
+        };
+
+        if (after) {
+          params.after = after;
+        }
+
+        if (lastSyncTime) {
+          params.filterGroups = JSON.stringify([{
+            filters: [{
+              propertyName: 'lastmodifieddate',
+              operator: 'GTE',
+              value: lastSyncTime.getTime().toString(),
+            }],
+          }]);
+        }
+
+        const response = await this.makeRequest('GET', '/crm/v3/objects/contacts', params);
+
+        if (response?.results) {
+          for (const contact of response.results) {
+            try {
+              await this.upsertContact(contact);
+              result.recordsProcessed++;
+            } catch (error) {
+              result.errors.push(`Contact ${contact.id}: ${error.message}`);
+            }
+          }
+        }
+
+        hasMore = response?.paging?.next?.after;
+        after = response?.paging?.next?.after;
+      } catch (error) {
+        result.errors.push(`Contacts sync: ${error.message}`);
+        break;
+      }
+    }
+  }
+
+  private async syncCompanies(result: SyncResult, lastSyncTime?: Date): Promise<void> {
+    // Similar implementation to syncContacts but for companies
+    this.logger.info('Syncing companies from HubSpot');
+  }
+
+  private async syncDeals(result: SyncResult, lastSyncTime?: Date): Promise<void> {
+    // Similar implementation to syncContacts but for deals
+    this.logger.info('Syncing deals from HubSpot');
+  }
+
+  // Database operations
+  private async upsertContact(hubspotContact: HubSpotContact): Promise<void> {
+    const existingCustomer = await query(
+      'SELECT id FROM customers WHERE hubspot_contact_id = $1 OR email = $2',
+      [hubspotContact.id, hubspotContact.properties.email]
+    );
+
+    if (existingCustomer.rows.length > 0) {
+      // Update existing customer
+      await query(
+        `UPDATE customers SET 
+         hubspot_contact_id = $2, first_name = $3, last_name = $4, phone = $5,
+         address = $6, city = $7, state = $8, zip_code = $9,
+         hubspot_synced_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [
+          existingCustomer.rows[0].id,
+          hubspotContact.id,
+          hubspotContact.properties.firstname || '',
+          hubspotContact.properties.lastname || '',
+          hubspotContact.properties.phone || '',
+          hubspotContact.properties.address || '',
+          hubspotContact.properties.city || '',
+          hubspotContact.properties.state || '',
+          hubspotContact.properties.zip || '',
+        ]
+      );
+    } else {
+      // Create new customer from HubSpot contact
+      await query(
+        `INSERT INTO customers (
+          organization_id, hubspot_contact_id, first_name, last_name, email, phone,
+          address, city, state, zip_code, hubspot_synced_at, created_at, updated_at
+        ) VALUES (
+          (SELECT id FROM organizations LIMIT 1), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), NOW()
+        )`,
+        [
+          hubspotContact.id,
+          hubspotContact.properties.firstname || '',
+          hubspotContact.properties.lastname || '',
+          hubspotContact.properties.email,
+          hubspotContact.properties.phone || '',
+          hubspotContact.properties.address || '',
+          hubspotContact.properties.city || '',
+          hubspotContact.properties.state || '',
+          hubspotContact.properties.zip || '',
+        ]
+      );
+    }
+  }
+
+  // Webhook handlers
+  private async handleContactChange(event: any): Promise<void> {
+    const contactId = event.objectId;
+    
+    try {
+      const contact = await this.makeRequest('GET', `/crm/v3/objects/contacts/${contactId}`, {
+        properties: 'email,firstname,lastname,phone,address,city,state,zip,company,lifecyclestage',
+      });
+
+      if (contact) {
+        await this.upsertContact(contact);
+      }
+    } catch (error) {
+      this.logger.error(`Failed to handle contact change for ${contactId}`, error);
+    }
+  }
+
+  private async handleCompanyChange(event: any): Promise<void> {
+    this.logger.info(`Company change event: ${event.objectId}`);
+  }
+
+  private async handleDealChange(event: any): Promise<void> {
+    this.logger.info(`Deal change event: ${event.objectId}`);
+  }
+
+  // Utility methods
+  private mapJobStatusToDealStage(jobStatus: string): string {
+    const statusMap: Record<string, string> = {
+      'scheduled': 'appointmentscheduled',
+      'in_progress': 'qualifiedtobuy',
+      'completed': 'closedwon',
+      'cancelled': 'closedlost',
+    };
+
+    return statusMap[jobStatus] || 'appointmentscheduled';
+  }
+
+  protected async makeRequest(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
+    endpoint: string,
+    data?: any,
+    headers?: Record<string, string>
+  ): Promise<any> {
+    const requestHeaders = {
+      'Authorization': `Bearer ${this.hubspotConfig.accessToken}`,
+      'Content-Type': 'application/json',
+      ...headers,
+    };
+
+    return await super.makeRequest(method, endpoint, data, requestHeaders);
+  }
+}

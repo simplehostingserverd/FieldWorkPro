@@ -78,3 +78,6 @@ docker-compose.override.yml
 
 # Vercel
 .vercel
+
+# Crush
+.crush
