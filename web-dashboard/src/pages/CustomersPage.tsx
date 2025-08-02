@@ -98,22 +98,45 @@ const CustomersPage: React.FC = () => {
     }
   };
 
-  const filteredCustomers = customers.filter(customer =>
-    `${customer.firstName} ${customer.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.includes(searchTerm)
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      `${customer.first_name} ${customer.last_name}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.phone.includes(searchTerm)
   );
 
   // Customer form fields
   const customerFields = [
-    { name: 'firstName', label: 'First Name', type: 'text' as const, required: true },
-    { name: 'lastName', label: 'Last Name', type: 'text' as const, required: true },
+    {
+      name: 'first_name',
+      label: 'First Name',
+      type: 'text' as const,
+      required: true,
+    },
+    {
+      name: 'last_name',
+      label: 'Last Name',
+      type: 'text' as const,
+      required: true,
+    },
     { name: 'email', label: 'Email', type: 'email' as const, required: true },
     { name: 'phone', label: 'Phone', type: 'tel' as const, required: true },
-    { name: 'address', label: 'Address', type: 'text' as const, required: true },
+    {
+      name: 'address',
+      label: 'Address',
+      type: 'text' as const,
+      required: true,
+    },
     { name: 'city', label: 'City', type: 'text' as const, required: true },
     { name: 'state', label: 'State', type: 'text' as const, required: true },
-    { name: 'zipCode', label: 'ZIP Code', type: 'text' as const, required: true },
+    {
+      name: 'zip_code',
+      label: 'ZIP Code',
+      type: 'text' as const,
+      required: true,
+    },
   ];
 
   return (
@@ -130,7 +153,11 @@ const CustomersPage: React.FC = () => {
       )}
 
       {success && (
-        <Alert type="success" message={success} onClose={() => setSuccess(null)} />
+        <Alert
+          type="success"
+          message={success}
+          onClose={() => setSuccess(null)}
+        />
       )}
 
       {/* Search */}
@@ -150,8 +177,8 @@ const CustomersPage: React.FC = () => {
       </Card>
 
       {/* Customers Table */}
-      <Card 
-        title="Customer List" 
+      <Card
+        title="Customer List"
         actions={
           <Button onClick={handleAddCustomer} icon={FaPlus}>
             Add Customer
@@ -167,34 +194,56 @@ const CustomersPage: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Customer
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Contact
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Location
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Added
                   </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredCustomers.map((customer) => (
-                  <tr key={customer.id} className="hover:bg-gray-50 transition-colors">
+                  <tr
+                    key={customer.id}
+                    className="hover:bg-gray-50 transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {customer.firstName} {customer.lastName}
+                        {customer.first_name} {customer.last_name}
                       </div>
-                      <div className="text-sm text-gray-500">{customer.email}</div>
+                      <div className="text-sm text-gray-500">
+                        {customer.email}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{customer.phone}</div>
+                      <div className="text-sm text-gray-900">
+                        {customer.phone}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {customer.city}, {customer.state}
@@ -226,7 +275,10 @@ const CustomersPage: React.FC = () => {
                 ))}
                 {filteredCustomers.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-8 text-center text-sm text-gray-500">
+                    <td
+                      colSpan={4}
+                      className="px-6 py-8 text-center text-sm text-gray-500"
+                    >
                       <div className="flex flex-col items-center justify-center py-4">
                         <FaUsers className="h-8 w-8 text-gray-300 mb-2" />
                         <p>No customers found</p>
@@ -263,7 +315,7 @@ const CustomersPage: React.FC = () => {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleConfirmDelete}
         title="Delete Customer"
-        message={`Are you sure you want to delete ${deletingCustomer?.firstName} ${deletingCustomer?.lastName}? This action cannot be undone.`}
+        message={`Are you sure you want to delete ${deletingCustomer?.first_name} ${deletingCustomer?.last_name}? This action cannot be undone.`}
         confirmText="Delete Customer"
         type="danger"
         loading={formLoading}

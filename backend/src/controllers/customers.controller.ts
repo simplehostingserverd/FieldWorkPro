@@ -77,8 +77,8 @@ export const createNewCustomer = async (
     }
 
     const result = await query(
-      `INSERT INTO customers (organization_id, first_name, last_name, email, phone, address, city, state, zip_code, notes, created_at, updated_at) 
-       VALUES ((SELECT id FROM organizations LIMIT 1), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW()) 
+      `INSERT INTO customers (organization_id, first_name, last_name, email, phone, address, city, state, zip_code, notes, created_at, updated_at)
+       VALUES ((SELECT id FROM organizations LIMIT 1), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
        RETURNING *`,
       [
         first_name,

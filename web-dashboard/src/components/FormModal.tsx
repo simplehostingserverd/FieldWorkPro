@@ -32,18 +32,24 @@ const FormModal: React.FC<FormModalProps> = ({
   fields,
   initialData = {},
   loading = false,
-  submitText = 'Save'
+  submitText = 'Save',
 }) => {
   const [formData, setFormData] = useState<any>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (isOpen) {
+      // Debug logging
+      console.log('FormModal initialData:', initialData);
+      console.log('FormModal fields:', fields);
+
       // Initialize form data with initial values or empty strings
       const initialFormData: any = {};
-      fields.forEach(field => {
+      fields.forEach((field) => {
         initialFormData[field.name] = initialData[field.name] || '';
       });
+
+      console.log('FormModal initialFormData:', initialFormData);
       setFormData(initialFormData);
       setErrors({});
     }
@@ -52,34 +58,37 @@ const FormModal: React.FC<FormModalProps> = ({
   const handleChange = (name: string, value: string) => {
     setFormData({
       ...formData,
-      [name]: value
+      [name]: value,
     });
-    
+
     // Clear error for this field if it was set
     if (errors[name]) {
       setErrors({
         ...errors,
-        [name]: ''
+        [name]: '',
       });
     }
   };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
-    fields.forEach(field => {
-      if (field.required && (!formData[field.name] || formData[field.name].trim() === '')) {
+
+    fields.forEach((field) => {
+      if (
+        field.required &&
+        (!formData[field.name] || formData[field.name].trim() === '')
+      ) {
         newErrors[field.name] = `${field.label} is required`;
       }
     });
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (validateForm()) {
       onSubmit(formData);
     }
@@ -88,11 +97,15 @@ const FormModal: React.FC<FormModalProps> = ({
   const renderField = (field: FormField) => {
     const value = formData[field.name] || '';
     const error = errors[field.name];
-    
+
     switch (field.type) {
       case 'textarea':
         return (
-          <FormField label={field.label} required={field.required} error={error}>
+          <FormField
+            label={field.label}
+            required={field.required}
+            error={error}
+          >
             <Textarea
               value={value}
               onChange={(e) => handleChange(field.name, e.target.value)}
@@ -101,16 +114,20 @@ const FormModal: React.FC<FormModalProps> = ({
             />
           </FormField>
         );
-      
+
       case 'select':
         return (
-          <FormField label={field.label} required={field.required} error={error}>
+          <FormField
+            label={field.label}
+            required={field.required}
+            error={error}
+          >
             <Select
               value={value}
               onChange={(e) => handleChange(field.name, e.target.value)}
             >
               <option value="">Select {field.label.toLowerCase()}</option>
-              {field.options?.map(option => (
+              {field.options?.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -118,10 +135,14 @@ const FormModal: React.FC<FormModalProps> = ({
             </Select>
           </FormField>
         );
-      
+
       default:
         return (
-          <FormField label={field.label} required={field.required} error={error}>
+          <FormField
+            label={field.label}
+            required={field.required}
+            error={error}
+          >
             <Input
               type={field.type}
               value={value}
@@ -136,12 +157,10 @@ const FormModal: React.FC<FormModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {fields.map(field => (
-          <div key={field.name}>
-            {renderField(field)}
-          </div>
+        {fields.map((field) => (
+          <div key={field.name}>{renderField(field)}</div>
         ))}
-        
+
         <div className="flex justify-end space-x-3 pt-4">
           <Button variant="secondary" onClick={onClose} disabled={loading}>
             Cancel

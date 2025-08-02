@@ -68,7 +68,6 @@ const Sidebar: React.FC = () => {
             })}
           </nav>
         </div>
-        </div>
       </div>
     </div>
   );

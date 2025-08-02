@@ -105,10 +105,11 @@ const InventoryPage: React.FC = () => {
     }).format(amount);
   };
 
-  const filteredInventory = inventory.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.sku.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredInventory = inventory.filter(
+    (item) =>
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Inventory form fields
@@ -117,20 +118,33 @@ const InventoryPage: React.FC = () => {
     { name: 'sku', label: 'SKU', type: 'text' as const, required: true },
     { name: 'description', label: 'Description', type: 'textarea' as const },
     { name: 'category', label: 'Category', type: 'text' as const },
-    { name: 'unitCost', label: 'Unit Cost', type: 'number' as const, required: true },
-    { name: 'unitPrice', label: 'Unit Price', type: 'number' as const, required: true },
-    { name: 'quantityInStock', label: 'Quantity in Stock', type: 'number' as const, required: true },
-    { name: 'reorderLevel', label: 'Reorder Level', type: 'number' as const },
-    { name: 'notes', label: 'Notes', type: 'textarea' as const }
+    {
+      name: 'unit_cost',
+      label: 'Unit Cost',
+      type: 'number' as const,
+      required: true,
+    },
+    {
+      name: 'unit_price',
+      label: 'Unit Price',
+      type: 'number' as const,
+      required: true,
+    },
+    {
+      name: 'quantity_in_stock',
+      label: 'Quantity in Stock',
+      type: 'number' as const,
+      required: true,
+    },
+    { name: 'reorder_level', label: 'Reorder Level', type: 'number' as const },
+    { name: 'notes', label: 'Notes', type: 'textarea' as const },
   ];
 
   return (
     <div className="space-y-6">
       <div className="mb-2">
         <h1 className="text-3xl font-bold text-gray-900">Inventory</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Manage inventory items
-        </p>
+        <p className="mt-2 text-sm text-gray-600">Manage inventory items</p>
       </div>
 
       {error && (
@@ -138,7 +152,11 @@ const InventoryPage: React.FC = () => {
       )}
 
       {success && (
-        <Alert type="success" message={success} onClose={() => setSuccess(null)} />
+        <Alert
+          type="success"
+          message={success}
+          onClose={() => setSuccess(null)}
+        />
       )}
 
       {/* Search */}
@@ -175,25 +193,46 @@ const InventoryPage: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Item
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     SKU
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Category
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Cost
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Price
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     In Stock
                   </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
                     Actions
                   </th>
                 </tr>
@@ -202,8 +241,12 @@ const InventoryPage: React.FC = () => {
                 {filteredInventory.map((item) => (
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{item.name}</div>
-                      <div className="text-sm text-gray-500">{item.description}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {item.name}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {item.description}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.sku}
@@ -212,16 +255,20 @@ const InventoryPage: React.FC = () => {
                       {item.category}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatCurrency(item.unitCost)}
+                      {formatCurrency(item.unit_cost)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatCurrency(item.unitPrice)}
+                      {formatCurrency(item.unit_price)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {item.quantityInStock}
-                      {item.quantityInStock <= item.reorderLevel && item.reorderLevel > 0 && (
-                        <span className="ml-2 text-xs text-red-600"> LOW STOCK</span>
-                      )}
+                      {item.quantity_in_stock}
+                      {item.quantity_in_stock <= item.reorder_level &&
+                        item.reorder_level > 0 && (
+                          <span className="ml-2 text-xs text-red-600">
+                            {' '}
+                            LOW STOCK
+                          </span>
+                        )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
@@ -247,7 +294,10 @@ const InventoryPage: React.FC = () => {
                 ))}
                 {filteredInventory.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
+                    <td
+                      colSpan={7}
+                      className="px-6 py-8 text-center text-sm text-gray-500"
+                    >
                       <div className="flex flex-col items-center justify-center py-4">
                         <FaBox className="h-8 w-8 text-gray-300 mb-2" />
                         <p>No inventory items found</p>
