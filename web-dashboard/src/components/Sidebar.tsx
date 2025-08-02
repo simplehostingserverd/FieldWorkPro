@@ -1,15 +1,16 @@
 // src/components/Sidebar.tsx
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  FaHome, 
-  FaUsers, 
-  FaToolbox, 
-  FaClipboardList, 
-  FaFileInvoice, 
-  FaCreditCard, 
-  FaBox, 
-  FaCogs 
+import {
+  FaHome,
+  FaUsers,
+  FaToolbox,
+  FaClipboardList,
+  FaFileInvoice,
+  FaCreditCard,
+  FaBox,
+  FaCogs,
+  FaUserCog,
 } from 'react-icons/fa';
 
 const Sidebar: React.FC = () => {
@@ -23,6 +24,7 @@ const Sidebar: React.FC = () => {
     { name: 'Payments', href: '/payments', icon: FaCreditCard },
     { name: 'Inventory', href: '/inventory', icon: FaBox },
     { name: 'Equipment', href: '/equipment', icon: FaToolbox },
+    { name: 'Settings', href: '/settings', icon: FaUserCog },
     { name: 'Component Demo', href: '/demo', icon: FaCogs },
   ];
 
@@ -42,7 +44,7 @@ const Sidebar: React.FC = () => {
             {navigation.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.href;
-              
+
               return (
                 <Link
                   key={item.name}
@@ -55,7 +57,9 @@ const Sidebar: React.FC = () => {
                 >
                   <Icon
                     className={`${
-                      isActive ? 'text-white' : 'text-blue-200 group-hover:text-white'
+                      isActive
+                        ? 'text-white'
+                        : 'text-blue-200 group-hover:text-white'
                     } mr-3 flex-shrink-0 h-5 w-5`}
                   />
                   <span className="truncate">{item.name}</span>
@@ -63,20 +67,7 @@ const Sidebar: React.FC = () => {
               );
             })}
           </nav>
-          
-          <div className="mt-auto px-4 py-4">
-            <div className="bg-blue-800 bg-opacity-50 rounded-xl p-4 border border-blue-600">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <FaCogs className="h-5 w-5 text-blue-200" />
-                </div>
-                <div className="ml-3">
-                  <p className="text-xs font-medium text-blue-200">Settings</p>
-                  <p className="text-xs text-blue-300">Manage your account</p>
-                </div>
-              </div>
-            </div>
-          </div>
+        </div>
         </div>
       </div>
     </div>

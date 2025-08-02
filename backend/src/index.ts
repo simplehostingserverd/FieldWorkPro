@@ -4,6 +4,12 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import authRoutes from './auth.routes';
+import customersRoutes from './routes/customers.routes';
+// import jobsRoutes from './routes/jobs.routes';
+// import invoicesRoutes from './routes/invoices.routes';
+// import paymentsRoutes from './routes/payments.routes';
+// import inventoryRoutes from './routes/inventory.routes';
+// import equipmentRoutes from './routes/equipment.routes';
 
 // Load environment variables
 dotenv.config();
@@ -24,6 +30,14 @@ app.get('/', (req, res) => {
 
 // Auth routes
 app.use('/auth', authRoutes);
+
+// API routes
+app.use('/api/customers', customersRoutes);
+// app.use('/api/jobs', jobsRoutes);
+// app.use('/api/invoices', invoicesRoutes);
+// app.use('/api/payments', paymentsRoutes);
+// app.use('/api/inventory', inventoryRoutes);
+// app.use('/api/equipment', equipmentRoutes);
 
 // Start server
 app.listen(PORT, () => {

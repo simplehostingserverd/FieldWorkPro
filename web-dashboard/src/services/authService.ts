@@ -2,7 +2,7 @@
 import axios from 'axios';
 import config from '../config/environment';
 
-const API_BASE_URL = config.API_BASE_URL;
+const AUTH_BASE_URL = config.AUTH_BASE_URL;
 
 interface LoginCredentials {
   email: string;
@@ -33,13 +33,13 @@ class AuthService {
   // Login user
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, credentials);
+      const response = await axios.post(`${AUTH_BASE_URL}/login`, credentials);
       const { token, user } = response.data;
-      
+
       // Store token in localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Login failed');
@@ -49,13 +49,13 @@ class AuthService {
   // Register user
   async register(userData: RegisterData): Promise<AuthResponse> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/register`, userData);
+      const response = await axios.post(`${AUTH_BASE_URL}/register`, userData);
       const { token, user } = response.data;
-      
+
       // Store token in localStorage
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      
+
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Registration failed');
