@@ -3,6 +3,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
+import authRoutes from './auth.routes';
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +21,9 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.json({ message: 'Welcome to FieldPro API' });
 });
+
+// Auth routes
+app.use('/auth', authRoutes);
 
 // Start server
 app.listen(PORT, () => {

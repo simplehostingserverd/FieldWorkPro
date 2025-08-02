@@ -1,8 +1,8 @@
 // Authentication service
 import bcrypt from 'bcrypt';
-import { UserAuth, CreateUser } from '../models/User';
-import { generateToken, verifyToken } from '../config/auth';
-import { query } from '../config/database';
+import { UserAuth, CreateUser } from './User';
+import { generateToken, verifyToken } from './auth';
+import { query } from './database';
 
 // In a real application, use at least 10 rounds
 const SALT_ROUNDS = 10;
@@ -50,7 +50,7 @@ export const registerUser = async (userData: CreateUser) => {
         role: user.role
       }
     };
-  } catch (error) {
+  } catch (error: any) {
     throw new Error(`Error registering user: ${error.message}`);
   }
 };
@@ -92,7 +92,7 @@ export const loginUser = async (credentials: UserAuth) => {
         role: user.role
       }
     };
-  } catch (error) {
+  } catch (error: any) {
     throw new Error(`Error logging in: ${error.message}`);
   }
 };

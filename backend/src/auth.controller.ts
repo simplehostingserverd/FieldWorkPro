@@ -4,7 +4,41 @@ import { UserAuth, CreateUser } from '../models/User';
 import { generateToken } from '../config/auth';
 
 // Mock database for demonstration
-const users: any[] = [];
+const users: any[] = [
+  {
+    id: 'test-admin-001',
+    firstName: 'Admin',
+    lastName: 'User',
+    email: 'admin@fieldpro.com',
+    password: 'admin123',
+    phone: '555-0001',
+    role: 'admin',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'test-manager-001',
+    firstName: 'Manager',
+    lastName: 'User',
+    email: 'manager@fieldpro.com',
+    password: 'manager123',
+    phone: '555-0002',
+    role: 'manager',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  },
+  {
+    id: 'test-tech-001',
+    firstName: 'Tech',
+    lastName: 'User',
+    email: 'tech@fieldpro.com',
+    password: 'tech123',
+    phone: '555-0003',
+    role: 'technician',
+    createdAt: new Date(),
+    updatedAt: new Date()
+  }
+];
 
 export const register = async (req: Request, res: Response) => {
   try {
