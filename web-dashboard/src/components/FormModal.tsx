@@ -7,9 +7,10 @@ import { FormField, Input, Textarea, Select } from './Form';
 interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'email';
+  type: 'text' | 'email' | 'tel' | 'number' | 'date' | 'select' | 'textarea';
   required?: boolean;
   options?: { value: string; label: string }[];
+  placeholder?: string;
 }
 
 interface FormModalProps {
