@@ -12,13 +12,19 @@ yarn-error.log*
 /out
 
 # IDEs
-.vscode/
 .idea/
 *.sw[op]
 *.swo
 *.swp
 *.sublime-project
 *.sublime-workspace
+
+# VSCode - Include workspace configuration files
+!.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
 
 # OS
 .DS_Store

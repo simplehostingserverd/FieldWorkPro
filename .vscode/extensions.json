@@ -1,0 +1,63 @@
+{
+  "recommendations": [
+    // TypeScript & JavaScript
+    "ms-vscode.vscode-typescript-next",
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    
+    // React Development
+    "dsznajder.es7-react-js-snippets",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    
+    // Node.js & Backend
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml",
+    "ms-vscode.vscode-node-azure-pack",
+    
+    // Database
+    "ms-mssql.mssql",
+    "ckolkman.vscode-postgres",
+    "mtxr.sqltools",
+    "mtxr.sqltools-driver-pg",
+    
+    // Docker
+    "ms-azuretools.vscode-docker",
+    
+    // Git & Version Control
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    
+    // Productivity
+    "ms-vscode.vscode-todo-highlight",
+    "gruntfuggly.todo-tree",
+    "streetsidesoftware.code-spell-checker",
+    "ms-vscode.vscode-json",
+    
+    // Markdown & Documentation
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    
+    // Environment & Config
+    "mikestead.dotenv",
+    "ms-vscode.vscode-json",
+    
+    // Testing
+    "ms-vscode.vscode-jest",
+    "hbenl.vscode-test-explorer",
+    
+    // Code Quality
+    "sonarsource.sonarlint-vscode",
+    "ms-vscode.vscode-typescript-next",
+    
+    // Utilities
+    "ms-vscode.vscode-json",
+    "ms-vscode.hexeditor",
+    "ms-vscode.vscode-json",
+    "ms-vscode.remote-containers"
+  ],
+  "unwantedRecommendations": [
+    "ms-vscode.vscode-typescript"
+  ]
+}
