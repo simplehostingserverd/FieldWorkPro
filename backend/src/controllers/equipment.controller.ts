@@ -1,102 +1,146 @@
-// Equipment controller
+// Equipment controller - simplified version
 import { Request, Response } from 'express';
-import { 
-  getEquipmentByOrganization, 
-  getEquipmentById, 
-  createEquipment, 
-  updateEquipment, 
-  deleteEquipment 
-} from '../services/equipment.service';
-import { CreateEquipment } from '../types/equipment.types';
+import { query } from '../database';
 
-export const getAllEquipment = async (req: Request, res: Response) => {
+export const getAllEquipment = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const organizationId = (req as any).user.organizationId;
-    const equipment = await getEquipmentByOrganization(organizationId);
-    res.status(200).json(equipment);
-  } catch (error) {
-    res.status(500).json({ message: 'Error retrieving equipment', error: error.message });
+    const result = await query('SELECT * FROM equipment ORDER BY name ASC');
+    res.status(200).json(result.rows);
+  } catch (error: any) {
+    console.error('Error retrieving equipment:', error);
+    res.status(500).json({
+      message: 'Error retrieving equipment',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? error.message
+          : 'Internal server error',
+    });
   }
 };
 
-export const getEquipmentItem = async (req: Request, res: Response) => {
+export const getEquipmentItem = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const equipmentId = req.params.id;
-    const organizationId = (req as any).user.organizationId;
-    
-    const equipment = await getEquipmentById(equipmentId, organizationId);
-    
-    if (!equipment) {
-      return res.status(404).json({ message: 'Equipment not found' });
+    const result = await query('SELECT * FROM equipment WHERE id = $1', [
+      equipmentId,
+    ]);
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: 'Equipment not found' });
+      return;
     }
-    
-    res.status(200).json(equipment);
-  } catch (error) {
-    res.status(500).json({ message: 'Error retrieving equipment', error: error.message });
+
+    res.status(200).json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error retrieving equipment:', error);
+    res.status(500).json({
+      message: 'Error retrieving equipment',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? error.message
+          : 'Internal server error',
+    });
   }
 };
 
-export const createNewEquipment = async (req: Request, res: Response) => {
+export const createNewEquipment = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const equipmentData: CreateEquipment = req.body;
-    const organizationId = (req as any).user.organizationId;
-    
-    const equipment = await createEquipment({
-      ...equipmentData,
-      organizationId
+    const { name, description, serial_number, category, status } = req.body;
+
+    if (!name || !category) {
+      res.status(400).json({ message: 'Name and category are required' });
+      return;
+    }
+
+    const result = await query(
+      `INSERT INTO equipment (organization_id, name, description, serial_number, category, status, created_at, updated_at) 
+       VALUES ((SELECT id FROM organizations LIMIT 1), $1, $2, $3, $4, $5, NOW(), NOW()) 
+       RETURNING *`,
+      [name, description, serial_number, category, status || 'available']
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error creating equipment:', error);
+    res.status(500).json({
+      message: 'Error creating equipment',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? error.message
+          : 'Internal server error',
     });
-    
-    res.status(201).json({
-      message: 'Equipment created successfully',
-      equipment
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating equipment', error: error.message });
   }
 };
 
-export const updateExistingEquipment = async (req: Request, res: Response) => {
+export const updateExistingEquipment = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const equipmentId = req.params.id;
-    const equipmentData = req.body;
-    const organizationId = (req as any).user.organizationId;
-    
-    const equipment = await updateEquipment(equipmentId, equipmentData, organizationId);
-    
-    if (!equipment) {
-      return res.status(404).json({ message: 'Equipment not found' });
+    const { name, description, serial_number, category, status } = req.body;
+
+    const result = await query(
+      `UPDATE equipment 
+       SET name = $1, description = $2, serial_number = $3, category = $4, status = $5, updated_at = NOW()
+       WHERE id = $6 
+       RETURNING *`,
+      [name, description, serial_number, category, status, equipmentId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: 'Equipment not found' });
+      return;
     }
-    
-    res.status(200).json({
-      message: 'Equipment updated successfully',
-      equipment
+
+    res.status(200).json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error updating equipment:', error);
+    res.status(500).json({
+      message: 'Error updating equipment',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? error.message
+          : 'Internal server error',
     });
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating equipment', error: error.message });
   }
 };
 
-export const deleteExistingEquipment = async (req: Request, res: Response) => {
+export const deleteExistingEquipment = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const equipmentId = req.params.id;
-    const organizationId = (req as any).user.organizationId;
-    
-    const result = await deleteEquipment(equipmentId, organizationId);
-    
-    if (!result) {
-      return res.status(404).json({ message: 'Equipment not found' });
+
+    const result = await query(
+      'DELETE FROM equipment WHERE id = $1 RETURNING *',
+      [equipmentId]
+    );
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: 'Equipment not found' });
+      return;
     }
-    
+
     res.status(200).json({ message: 'Equipment deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting equipment', error: error.message });
+  } catch (error: any) {
+    console.error('Error deleting equipment:', error);
+    res.status(500).json({
+      message: 'Error deleting equipment',
+      error:
+        process.env.NODE_ENV === 'development'
+          ? error.message
+          : 'Internal server error',
+    });
   }
-};
-
-export default {
-  getAllEquipment,
-  getEquipmentItem,
-  createNewEquipment,
-  updateExistingEquipment,
-  deleteExistingEquipment
 };
